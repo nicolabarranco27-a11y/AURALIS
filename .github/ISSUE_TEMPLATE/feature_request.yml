@@ -1,0 +1,69 @@
+name: Feature Request
+description: Sugerir una nueva funcionalidad
+title: "[FEAT]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por sugerir una mejora! Describe claramente el problema que resuelve y tu propuesta.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema a Resolver
+      description: Qué dolor de usuario o limitación actual motiva esta feature
+      placeholder: "Los usuarios no pueden reordenar canciones en una playlist manualmente..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución Propuesta
+      description: Qué funcionalidad exacta te gustaría ver
+      placeholder: "Drag-and-drop en PlaylistDetailScreen para reordenar, con persistencia en Room..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas Consideradas
+      description: Otras soluciones que evaluaste y por qué no encajan
+      placeholder: "Botones subir/bajar: menos intuitivo. Ordenar por fecha/alfabético: no cubre orden personalizado."
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups / Referencias
+      description: Enlaces a Figma, sketches, capturas de apps similares, etc.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área de la App
+      options:
+        - Reproducción (Player, Service, Notificaciones)
+        - Biblioteca (Canciones, Álbumes, Artistas)
+        - Playlists
+        - Favoritos
+        - Escaneo / Metadatos
+        - UI / Tema / Navegación
+        - Permisos / Onboarding
+        - Testing / CI
+        - Otro
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: He verificado que no existe issue/PR duplicado
+          required: true
+        - label: Esta feature encaja en el scope de Auralis (reproductor local, sin streaming)
+          required: true
+        - label: Estoy dispuesto a implementarlo o ayudar en la implementación
+          required: false

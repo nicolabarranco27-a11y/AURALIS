@@ -1,0 +1,11 @@
+- [x] Implementación de la sección de Playlists
+    - [x] Actualizar `PlaylistDao.kt` para observar canciones.
+    - [x] Actualizar `PlaylistRepository` y `RoomPlaylistRepository`.
+    - [x] Crear ViewModels: `PlaylistsViewModel`, `PlaylistDetailViewModel`, `AddToPlaylistViewModel`.
+    - [x] Crear Pantallas: `PlaylistsScreen`, `PlaylistDetailScreen`, `AddToPlaylistScreen`.
+    - [x] Configurar navegación en `ReproductorNavHost.kt`.
+- [x] Verificación
+    - [x] Ejecutar tests unitarios.
+    - [x] Verificar persistencia al reiniciar app.
+    - [x] Ejecutar `./gradlew assembleDebug`.
+    - [x] Ejecutar `./gradlew lint`.

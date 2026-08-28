@@ -1,0 +1,87 @@
+# Gradle
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration
+local.properties
+*.properties
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Android
+*.apk
+*.ap_
+*.aab
+output/
+captures/
+.externalNativeBuild/
+
+# Kotlin
+*.kt.java
+*.class
+
+# Test reports
+*/build/reports/
+*/build/outputs/
+
+# Coverage
+*.ec
+*.exec
+jacoco/
+
+# Keystore
+*.jks
+*.keystore
+keystore/
+
+# Signing configs
+signing.properties
+
+# Temp files
+*.tmp
+*.temp
+.temp/
+
+# KSP
+*.ksp/
+
+# Compose
+compose/
+
+# Room schemas (optional - commit if you want versioned schemas)
+# schemas/
+
+# Firebase / Google Services (if used)
+google-services.json
+
+# Secrets
+*.env
+secrets.properties
+
+# Releases
+*.release/
+
+# Mac
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini

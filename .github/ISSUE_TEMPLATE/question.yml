@@ -1,0 +1,39 @@
+name: Pregunta / Ayuda
+description: Hacer una pregunta sobre uso, arquitectura, contribución, etc.
+title: "[QUESTION]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¿Tienes dudas sobre cómo usar la app, la arquitectura, cómo contribuir, configurar el build, etc.? ¡Pregunta aquí!
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Tu Pregunta
+      description: Sé específico para poder ayudarte mejor
+      placeholder: "¿Cómo funciona el escaneo en segundo plano con WorkManager? ¿Puedo personalizar la frecuencia?"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Categoría
+      options:
+        - Uso de la app
+        - Arquitectura / Código
+        - Build / Gradle / Dependencias
+        - Testing
+        - Contribución / PR
+        - Despliegue / Play Store
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto Adicional
+      description: Qué has probado, qué docs has leído, errores que ves, etc.

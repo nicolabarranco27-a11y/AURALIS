@@ -1,0 +1,98 @@
+name: Bug Report
+description: Reportar un bug reproducible
+title: "[BUG]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por reportar un bug. Por favor completa toda la información posible para ayudarnos a reproducirlo y solucionarlo rápido.
+
+  - type: input
+    id: version
+    attributes:
+      label: Versión de la App
+      description: versionName y versionCode (ej: 0.1.0 / 1)
+      placeholder: "0.1.0 / 1"
+    validations:
+      required: true
+
+  - type: input
+    id: android
+    attributes:
+      label: Versión Android
+      description: API level y nombre (ej: API 34 / Android 14)
+      placeholder: "API 34 / Android 14"
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Dispositivo
+      description: Modelo y fabricante (ej: Pixel 7, Samsung Galaxy S23)
+      placeholder: "Pixel 7"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Pasos para Reproducir
+      description: Lista numerada de pasos mínimos para reproducir el bug
+      placeholder: |
+        1. Abrir la app
+        2. Ir a Playlists
+        3. Crear nueva playlist "Test"
+        4. Añadir 3 canciones
+        5. Reproducir la playlist
+        6. App crashea
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento Esperado
+      description: Qué debería pasar
+      placeholder: La playlist debería reproducirse sin errores
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamiento Actual
+      description: Qué pasa realmente (crash, error, UI rota, etc.)
+      placeholder: App crashea con NullPointerException en PlaylistDetailViewModel
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stacktrace
+      description: Pega logs relevantes (logcat, crashlytics, etc.)
+      render: kotlin
+      placeholder: |
+        E/AndroidRuntime: FATAL EXCEPTION: main
+        Process: com.auralis.player, PID: 12345
+        java.lang.NullPointerException: ...
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Capturas / Video
+      description: Arrastra imágenes o graba pantalla si es bug visual
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: He probado en la última versión (main branch)
+          required: true
+        - label: He buscado issues duplicados antes de reportar
+          required: true
+        - label: El bug es reproducible consistentemente
+          required: true
