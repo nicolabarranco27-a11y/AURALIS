@@ -36,13 +36,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest
 
       - name: Run Lint
-        run: ./gradlew lintDebug --no-daemon
+        run: ./gradlew lintDebug
 
       - name: Upload Lint Report
         if: always()
@@ -97,7 +97,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Instrumented Tests
-        run: ./gradlew connectedDebugAndroidTest --no-daemon
+        run: ./gradlew connectedDebugAndroidTest
 
       - name: Upload Test Results
         if: always()
@@ -134,7 +134,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release AAB
-        run: ./gradlew bundleRelease --no-daemon
+        run: ./gradlew bundleRelease
 
       - name: Upload AAB
         uses: actions/upload-artifact@v4
