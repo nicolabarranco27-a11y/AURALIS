@@ -8,6 +8,7 @@ build/
 local.properties
 *.properties
 !gradle/wrapper/gradle-wrapper.properties
+!gradle/gradle-daemon-jvm.properties
 
 # IDE
 .idea/
