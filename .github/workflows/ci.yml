@@ -16,6 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
