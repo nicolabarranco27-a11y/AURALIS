@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 30
 
     env:
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx2048m"
+      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m"
 
     steps:
       - name: Checkout
@@ -37,32 +37,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: wrapper
-
-      - name: Diagnostic - Gradle & JVM Memory Info
-        run: |
-          echo "===== 1. Gradle Version ====="
-          ./gradlew --version
-
-          echo ""
-          echo "===== 2. Java/JDK Installed ====="
-          java -version 2>&1
-          echo "JAVA_HOME=$JAVA_HOME"
-
-          echo ""
-          echo "===== 3. System RAM ====="
-          free -h
-
-          echo ""
-          echo "===== 4. Gradle Properties (org.gradle.jvmargs) ====="
-          ./gradlew properties 2>&1 | grep -i "org.gradle.jvmargs" || echo "(not found via properties task)"
-
-          echo ""
-          echo "===== 5. Daemon Info (maxMemory) ====="
-          ./gradlew help --debug 2>&1 | grep -iE "daemonOpts|heap usage|Xmx|maxMemory" | head -5
-
-          echo ""
-          echo "===== 6. JVM Default Settings ====="
-          java -XshowSettings:vm -version 2>&1 || true
 
       - name: Build Debug
         run: ./gradlew assembleDebug
