@@ -15,6 +15,7 @@ import javax.inject.Inject
  */
 data class MediaStoreAudio(
     val mediaStoreId: Long,
+    val albumId: Long,
     val uri: String,
     val displayName: String,
     val title: String?,
@@ -57,6 +58,7 @@ class MediaStoreSource @Inject constructor(
 
         val projection = buildList {
             add(MediaStore.Audio.Media._ID)
+            add(MediaStore.Audio.Media.ALBUM_ID)
             add(MediaStore.Audio.Media.DISPLAY_NAME)
             add(MediaStore.Audio.Media.TITLE)
             add(MediaStore.Audio.Media.ARTIST)
@@ -82,6 +84,7 @@ class MediaStoreSource @Inject constructor(
             "${MediaStore.Audio.Media.DATE_ADDED} DESC",
         )?.use { cursor ->
             val idIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val albumIdIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val displayIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             val titleIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artistIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
@@ -102,9 +105,11 @@ class MediaStoreSource @Inject constructor(
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idIdx)
+                val albumId = cursor.getLong(albumIdIdx)
                 val trackRaw = cursor.getInt(trackIdx)
                 result += MediaStoreAudio(
                     mediaStoreId = id,
+                    albumId = albumId,
                     uri = Uri.withAppendedPath(collection, id.toString()).toString(),
                     displayName = cursor.getString(displayIdx),
                     title = cursor.getString(titleIdx),

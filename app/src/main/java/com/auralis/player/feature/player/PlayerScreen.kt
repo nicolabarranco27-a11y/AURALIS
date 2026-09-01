@@ -1,6 +1,9 @@
 package com.auralis.player.feature.player
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -10,6 +13,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -17,9 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.AuralisArtwork
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 import com.auralis.player.domain.model.RepeatMode
+import com.auralis.player.domain.model.Song
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerScreen(
@@ -31,6 +40,23 @@ fun PlayerScreen(
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
     val gradient = ReproductorThemeTokens.primaryGradient
+    
+    val swipeOffsetX = remember { Animatable(0f) }
+    var isNext by remember { mutableStateOf(true) }
+    var draggedSongId by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+
+    // Sincronización: Solo reseteamos el offset cuando la nueva canción ya está establecida y visible.
+    // Usamos el ID de la canción actual para detectar cambios reales.
+    LaunchedEffect(state.currentSong?.id) {
+        if (draggedSongId != null) {
+            // Si venimos de un swipe, reseteamos el estado de arrastre de forma silenciosa
+            // una vez que la transición ha comenzado para la nueva canción.
+            draggedSongId = null
+            swipeOffsetX.snapTo(0f)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -61,8 +87,8 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Cover Art Placeholder
-        Box(
+        // Cover Art Area
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth(0.9f)
                 .aspectRatio(1f)
@@ -70,18 +96,89 @@ fun PlayerScreen(
                 .background(colors.surfaceRaised),
             contentAlignment = Alignment.Center
         ) {
+            val widthPx = with(density) { maxWidth.toPx() }
+            
             Box(
                 modifier = Modifier
-                    .fillMaxSize(0.4f)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(gradient, alpha = 0.1f),
+                    .fillMaxSize()
+                    .pointerInput(state.currentSong?.id) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { 
+                                draggedSongId = state.currentSong?.id?.value
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                scope.launch {
+                                    swipeOffsetX.snapTo(swipeOffsetX.value + dragAmount * 0.8f)
+                                }
+                            },
+                            onDragEnd = {
+                                scope.launch {
+                                    if (swipeOffsetX.value > 150f) {
+                                        // Anterior
+                                        isNext = false
+                                        // Animamos hacia afuera y lanzamos el comando
+                                        launch {
+                                            swipeOffsetX.animateTo(widthPx, tween(250, easing = FastOutLinearInEasing))
+                                            viewModel.skipPrevious()
+                                        }
+                                    } else if (swipeOffsetX.value < -150f) {
+                                        // Siguiente
+                                        isNext = true
+                                        // Animamos hacia afuera y lanzamos el comando
+                                        launch {
+                                            swipeOffsetX.animateTo(-widthPx, tween(250, easing = FastOutLinearInEasing))
+                                            viewModel.skipNext()
+                                        }
+                                    } else {
+                                        // Regreso suave al centro si no se superó el umbral
+                                        swipeOffsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                                        draggedSongId = null
+                                    }
+                                }
+                            },
+                            onDragCancel = { 
+                                scope.launch { 
+                                    swipeOffsetX.animateTo(0f)
+                                    draggedSongId = null
+                                } 
+                            }
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "♪",
-                    style = AppType.display.copy(fontSize = 80.sp),
-                    color = colors.accent
-                )
+                AnimatedContent(
+                    targetState = state.currentSong,
+                    transitionSpec = {
+                        // Determinamos si el cambio es manual analizando si hay un drag activo con offset significativo
+                        val wasManual = draggedSongId != null && Math.abs(swipeOffsetX.value) > 100f
+                        
+                        if (isNext) {
+                            (slideInHorizontally { width -> width } + fadeIn(tween(400))).togetherWith(
+                                if (wasManual) fadeOut(tween(300)) // La salida manual ya se hizo/está haciendo vía graphicsLayer
+                                else slideOutHorizontally { width -> -width } + fadeOut(tween(300))
+                            )
+                        } else {
+                            (slideInHorizontally { width -> -width } + fadeIn(tween(400))).togetherWith(
+                                if (wasManual) fadeOut(tween(300))
+                                else slideOutHorizontally { width -> width } + fadeOut(tween(300))
+                            )
+                        }
+                    },
+                    label = "ArtworkTransition"
+                ) { song ->
+                    AuralisArtwork(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                // El desplazamiento manual SOLO se aplica a la canción que causó el drag.
+                                // La nueva canción (que tiene un ID diferente) entrará limpia en x=0.
+                                if (song?.id?.value == draggedSongId) {
+                                    translationX = swipeOffsetX.value
+                                }
+                            },
+                        artworkReference = song?.coverReference
+                    )
+                }
             }
         }
 
@@ -176,7 +273,12 @@ fun PlayerScreen(
             }
 
             IconButton(
-                onClick = { viewModel.skipPrevious() },
+                onClick = { 
+                    isNext = false
+                    // Marcamos como no manual para que use la animación por defecto de slideOut
+                    draggedSongId = null
+                    viewModel.skipPrevious() 
+                },
                 modifier = Modifier.size(56.dp)
             ) {
                 Text("«", style = AppType.display.copy(fontSize = 32.sp), color = colors.textPrimary)
@@ -203,7 +305,12 @@ fun PlayerScreen(
             }
 
             IconButton(
-                onClick = { viewModel.skipNext() },
+                onClick = { 
+                    isNext = true
+                    // Marcamos como no manual
+                    draggedSongId = null
+                    viewModel.skipNext() 
+                },
                 modifier = Modifier.size(56.dp)
             ) {
                 Text("»", style = AppType.display.copy(fontSize = 32.sp), color = colors.textPrimary)

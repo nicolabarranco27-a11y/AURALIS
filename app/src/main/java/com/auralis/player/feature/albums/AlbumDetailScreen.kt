@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.QueueFeedbackOverlay
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -42,6 +44,8 @@ fun AlbumDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
+    
+    var showQueueFeedback by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -57,18 +61,29 @@ fun AlbumDetailScreen(
                     LoadingState(colors = colors)
                 }
                 else -> {
-                    AlbumDetailContent(
-                        state = state,
-                        onBackClick = onBackClick,
-                        onSongClick = { viewModel.onSongClick(it) },
-                        onPlayPauseClick = { viewModel.togglePlayPause() },
-                        onPlayerClick = onPlayerClick,
-                        onSeek = { viewModel.seekTo(it) },
-                        onSkipNext = { viewModel.skipNext() },
-                        onSkipPrevious = { viewModel.skipPrevious() },
-                        colors = colors,
-                        spacing = spacing
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AlbumDetailContent(
+                            state = state,
+                            onBackClick = onBackClick,
+                            onSongClick = { viewModel.onSongClick(it) },
+                            onAddToQueue = {
+                                viewModel.addToQueue(it)
+                                showQueueFeedback = true
+                            },
+                            onPlayPauseClick = { viewModel.togglePlayPause() },
+                            onPlayerClick = onPlayerClick,
+                            onSeek = { viewModel.seekTo(it) },
+                            onSkipNext = { viewModel.skipNext() },
+                            onSkipPrevious = { viewModel.skipPrevious() },
+                            colors = colors,
+                            spacing = spacing
+                        )
+                        
+                        QueueFeedbackOverlay(
+                            visible = showQueueFeedback,
+                            onDismiss = { showQueueFeedback = false }
+                        )
+                    }
                 }
             }
         }
@@ -80,6 +95,7 @@ private fun AlbumDetailContent(
     state: AlbumDetailUiState,
     onBackClick: () -> Unit,
     onSongClick: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -88,6 +104,8 @@ private fun AlbumDetailContent(
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    val coverReference = remember(state.songs) { state.songs.firstOrNull()?.coverReference }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -97,6 +115,7 @@ private fun AlbumDetailContent(
                 AlbumHeader(
                     title = state.albumTitle,
                     artist = state.artist,
+                    coverReference = coverReference,
                     onBackClick = onBackClick,
                     colors = colors,
                     spacing = spacing
@@ -109,6 +128,7 @@ private fun AlbumDetailContent(
                     song = song,
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
+                    onSwipeRight = { onAddToQueue(song) },
                     colors = colors,
                     spacing = spacing
                 )
@@ -142,6 +162,7 @@ private fun AlbumDetailContent(
 private fun AlbumHeader(
     title: String,
     artist: String?,
+    coverReference: String?,
     onBackClick: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
@@ -162,19 +183,12 @@ private fun AlbumHeader(
 
         Row(verticalAlignment = Alignment.Bottom) {
             // Mini Cover
-            Box(
+            AuralisArtwork(
                 modifier = Modifier
                     .size(120.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(colors.surfaceRaised),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "▢",
-                    style = AppType.display.copy(fontSize = 60.sp),
-                    color = colors.textSecondary.copy(alpha = 0.2f)
-                )
-            }
+                    .clip(RoundedCornerShape(12.dp)),
+                artworkReference = coverReference
+            )
 
             Spacer(modifier = Modifier.width(spacing.l))
 
@@ -203,55 +217,93 @@ private fun SongItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onSwipeRight: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    Row(
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = spacing.l, vertical = spacing.m),
-        verticalAlignment = Alignment.CenterVertically
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount ->
+                        offsetX = (offsetX + dragAmount).coerceIn(0f, 300f)
+                    },
+                    onDragEnd = {
+                        if (offsetX > 150f) {
+                            onSwipeRight()
+                        }
+                        scope.launch {
+                            Animatable(offsetX).animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            ) {
+                                offsetX = value
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            Animatable(offsetX).animateTo(0f) {
+                                offsetX = value
+                            }
+                        }
+                    }
+                )
+            }
+            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 150f).coerceAtMost(1f)) else Color.Transparent)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(40.dp)
-                .clip(ReproductorThemeTokens.shapes.small)
-                .then(
-                    if (isCurrent) Modifier.background(ReproductorThemeTokens.primaryGradient)
-                    else Modifier.background(colors.surfaceRaised)
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .graphicsLayer { translationX = offsetX }
+                .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else colors.background)
+                .clickable(enabled = offsetX == 0f, onClick = onClick)
+                .padding(horizontal = spacing.l, vertical = spacing.m),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (isCurrent) "▶" else "${song.trackNumber ?: ""}",
-                color = if (isCurrent) Color.White else colors.textSecondary,
-                style = AppType.label.copy(fontWeight = FontWeight.Bold)
-            )
-        }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(ReproductorThemeTokens.shapes.small)
+                    .then(
+                        if (isCurrent) Modifier.background(ReproductorThemeTokens.primaryGradient)
+                        else Modifier.background(colors.surfaceRaised)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (isCurrent) "▶" else "${song.trackNumber ?: ""}",
+                    color = if (isCurrent) Color.White else colors.textSecondary,
+                    style = AppType.label.copy(fontWeight = FontWeight.Bold)
+                )
+            }
 
-        Spacer(modifier = Modifier.width(spacing.m))
+            Spacer(modifier = Modifier.width(spacing.m))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = song.title,
-                style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
-                color = if (isCurrent) colors.accent else colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title,
+                    style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
+                    color = if (isCurrent) colors.accent else colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
-        Spacer(modifier = Modifier.width(spacing.s))
+            Spacer(modifier = Modifier.width(spacing.s))
 
-        song.durationMs?.let { duration ->
-            Text(
-                text = formatDuration(duration),
-                style = AppType.timer,
-                color = colors.textSecondary,
-                fontSize = 11.sp
-            )
+            song.durationMs?.let { duration ->
+                Text(
+                    text = formatDuration(duration),
+                    style = AppType.timer,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }
@@ -320,15 +372,12 @@ private fun PlaybackBar(
                     .padding(horizontal = spacing.m, vertical = spacing.s),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                AuralisArtwork(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(ReproductorThemeTokens.shapes.small)
-                        .background(colors.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "♪", color = colors.accent)
-                }
+                        .clip(ReproductorThemeTokens.shapes.small),
+                    artworkReference = state.currentSong?.coverReference
+                )
                 
                 Spacer(modifier = Modifier.width(spacing.m))
                 

@@ -38,6 +38,8 @@ data class SongEntity(
     val playCount: Long,
     val lastPlayedAtEpochMs: Long?,
     val isFavorite: Boolean,
+    /** URI de la portada (referencia local o de MediaStore). */
+    val coverUri: String? = null,
     /**
      * false = la cancion ya no existe en MediaStore (eliminacion logica).
      * Preserva playlists, favoritos e historico ante desapariciones

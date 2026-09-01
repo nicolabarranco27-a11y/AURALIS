@@ -10,14 +10,14 @@ permissions:
   contents: read
   checks: write
 
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m"
+
 jobs:
   build-and-test:
     name: Build & Unit Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
-    env:
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m"
 
     steps:
       - name: Checkout

@@ -18,6 +18,7 @@ interface LibraryDao {
             album as title,
             artist,
             MAX(year) as year,
+            MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
         WHERE isAvailable = 1 AND album IS NOT NULL
@@ -32,6 +33,7 @@ interface LibraryDao {
             album as title,
             artist,
             MAX(year) as year,
+            MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
         WHERE isAvailable = 1 AND album IS NOT NULL
@@ -88,6 +90,7 @@ interface LibraryDao {
             album as title,
             artist,
             MAX(year) as year,
+            MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
         WHERE isAvailable = 1 AND artist = :artistName AND album IS NOT NULL
@@ -109,9 +112,11 @@ interface LibraryDao {
         """
         SELECT * FROM songs
         WHERE isAvailable = 1
-          AND (title LIKE '%' || :query || '%'
-           OR artist LIKE '%' || :query || '%'
-           OR album LIKE '%' || :query || '%')
+          AND (
+            REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
+            OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(artist), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
+            OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(album), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
+          )
         ORDER BY title COLLATE NOCASE
         """,
     )

@@ -13,10 +13,14 @@ import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -34,6 +38,9 @@ data class HomeUiState(
     val scanStatus: ScanDisplayStatus = ScanDisplayStatus.Idle,
     val songs: List<Song> = emptyList(),
     val playbackState: com.auralis.player.domain.model.PlaybackState = com.auralis.player.domain.model.PlaybackState.IDLE,
+    val isSearchActive: Boolean = false,
+    val searchQuery: String = "",
+    val searchResults: List<Song> = emptyList(),
 ) {
 
     val songCount: Int get() = songs.size
@@ -51,21 +58,66 @@ class HomeViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeUiState(hasPermission = context.hasAudioAccess()))
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _isSearchActive = MutableStateFlow(false)
+    private val _searchQuery = MutableStateFlow("")
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val _searchResults = _searchQuery
+        .transformLatest { query ->
+            if (query.isNotBlank()) {
+                delay(300)
+                val normalizedQuery = query.trim().lowercase()
+                    .replace('á', 'a')
+                    .replace('é', 'e')
+                    .replace('í', 'i')
+                    .replace('ó', 'o')
+                    .replace('ú', 'u')
+                    .replace('ü', 'u')
+                emit(libraryRepository.searchSongs(normalizedQuery).take(4))
+            } else {
+                emit(emptyList())
+            }
+        }
+
     init {
         viewModelScope.launch {
-            combine(
+            val coreFlow = combine(
                 libraryRepository.observeSongs(),
                 scanMonitor.status,
                 playbackRepository.observePlaybackState(),
             ) { songs, status, playback ->
+                Triple(songs, status, playback)
+            }
+
+            combine(
+                coreFlow,
+                _isSearchActive,
+                _searchQuery,
+                _searchResults
+            ) { core, active, query, results ->
+                val (songs, status, playback) = core
                 HomeUiState(
                     hasPermission = context.hasAudioAccess(),
                     scanStatus = status.toDisplayStatus(),
                     songs = songs,
                     playbackState = playback,
+                    isSearchActive = active,
+                    searchQuery = query,
+                    searchResults = results
                 )
-            }.collect { newState -> _uiState.update { _ -> newState } }
+            }.collect { newState -> _uiState.value = newState }
         }
+    }
+
+    fun onToggleSearch(active: Boolean) {
+        _isSearchActive.value = active
+        if (!active) {
+            _searchQuery.value = ""
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
     }
 
     fun onSongClick(song: Song) {
@@ -95,6 +147,10 @@ class HomeViewModel @Inject constructor(
 
     fun skipPrevious() {
         playbackRepository.skipPrevious()
+    }
+
+    fun addToQueue(song: Song) {
+        playbackRepository.addSongToQueue(song)
     }
 
     fun toggleShuffle() {

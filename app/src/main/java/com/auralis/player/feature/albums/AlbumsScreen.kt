@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.AuralisArtwork
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -144,21 +145,13 @@ private fun AlbumItem(
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
-        // Album Cover Placeholder
-        Box(
+        AuralisArtwork(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(colors.surfaceRaised),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "▢",
-                style = AppType.display.copy(fontSize = 40.sp),
-                color = colors.textSecondary.copy(alpha = 0.2f)
-            )
-        }
+                .clip(RoundedCornerShape(12.dp)),
+            artworkReference = album.coverReference
+        )
 
         Spacer(modifier = Modifier.height(spacing.s))
 

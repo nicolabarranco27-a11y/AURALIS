@@ -85,4 +85,8 @@ class ArtistDetailViewModel @Inject constructor(
     fun skipPrevious() {
         playbackRepository.skipPrevious()
     }
+
+    fun addToQueue(song: Song) {
+        playbackRepository.addSongToQueue(song)
+    }
 }

@@ -7,26 +7,36 @@ import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.QueueFeedbackOverlay
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -43,6 +53,11 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
+    
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    var showQueueFeedback by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.onPermissionResult(granted)
@@ -53,7 +68,17 @@ fun HomeScreen(
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(state.isSearchActive) {
+                if (state.isSearchActive) {
+                    detectTapGestures(onTap = {
+                        viewModel.onToggleSearch(false)
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    })
+                }
+            },
         containerColor = colors.background,
     ) { innerPadding ->
         Column(
@@ -61,11 +86,38 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            HomeHeader(
-                onMenuClick = onMenuClick,
-                colors = colors,
-                spacing = spacing
-            )
+            Box {
+                HomeHeader(
+                    state = state,
+                    onMenuClick = onMenuClick,
+                    onSearchClick = { viewModel.onToggleSearch(true) },
+                    onQueryChange = { viewModel.onSearchQueryChanged(it) },
+                    colors = colors,
+                    spacing = spacing
+                )
+                
+                if (state.isSearchActive && state.searchQuery.isNotBlank()) {
+                    SearchSuggestionsOverlay(
+                        songs = state.searchResults,
+                        onSongClick = { 
+                            viewModel.onSongClick(it)
+                            viewModel.onToggleSearch(false)
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
+                        onAddToQueue = {
+                            viewModel.addToQueue(it)
+                            showQueueFeedback = true
+                            // Cierre inmediato al añadir a la cola
+                            viewModel.onToggleSearch(false)
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                        },
+                        colors = colors,
+                        spacing = spacing
+                    )
+                }
+            }
 
             Box(modifier = Modifier.weight(1f)) {
                 when {
@@ -111,19 +163,30 @@ fun HomeScreen(
                         )
                     }
                     else -> {
-                        MainContent(
-                            state = state,
-                            onScanClick = { viewModel.requestScan() },
-                            onSongClick = { viewModel.onSongClick(it) },
-                            onPlayPauseClick = { viewModel.togglePlayPause() },
-                            onPlayerClick = onPlayerClick,
-                            onSeek = { viewModel.seekTo(it) },
-                            onSkipNext = { viewModel.skipNext() },
-                            onSkipPrevious = { viewModel.skipPrevious() },
-                            onToggleShuffle = { viewModel.toggleShuffle() },
-                            colors = colors,
-                            spacing = spacing
-                        )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            MainContent(
+                                state = state,
+                                onScanClick = { viewModel.requestScan() },
+                                onSongClick = { viewModel.onSongClick(it) },
+                                onAddToQueue = { 
+                                    viewModel.addToQueue(it)
+                                    showQueueFeedback = true
+                                },
+                                onPlayPauseClick = { viewModel.togglePlayPause() },
+                                onPlayerClick = onPlayerClick,
+                                onSeek = { viewModel.seekTo(it) },
+                                onSkipNext = { viewModel.skipNext() },
+                                onSkipPrevious = { viewModel.skipPrevious() },
+                                onToggleShuffle = { viewModel.toggleShuffle() },
+                                colors = colors,
+                                spacing = spacing
+                            )
+                            
+                            QueueFeedbackOverlay(
+                                visible = showQueueFeedback,
+                                onDismiss = { showQueueFeedback = false }
+                            )
+                        }
                     }
                 }
             }
@@ -133,10 +196,15 @@ fun HomeScreen(
 
 @Composable
 private fun HomeHeader(
+    state: HomeUiState,
     onMenuClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onQueryChange: (String) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    val focusRequester = remember { FocusRequester() }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,7 +212,7 @@ private fun HomeHeader(
             .padding(start = 4.dp, end = spacing.l, top = 0.dp, bottom = 0.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Contenedor Circular del Logo - Tamaño reducido a 70dp para un ajuste más ceñido (~12.5% menos)
+        // Contenedor Circular del Logo
         Box(
             modifier = Modifier
                 .size(70.dp)
@@ -156,7 +224,6 @@ private fun HomeHeader(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Logo con tamaño e imagen interna preservados exactamente igual (80dp base + 1.24f scale)
             androidx.compose.foundation.Image(
                 painter = androidx.compose.ui.res.painterResource(id = com.auralis.player.R.drawable.logo_auralis),
                 contentDescription = "Logo Auralis",
@@ -169,32 +236,196 @@ private fun HomeHeader(
         
         Spacer(modifier = Modifier.width(spacing.s))
 
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                    onClick = onMenuClick
+        Box(modifier = Modifier.weight(1f)) {
+            if (state.isSearchActive) {
+                TextField(
+                    value = state.searchQuery,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 0.dp)
+                        .focusRequester(focusRequester),
+                    placeholder = {
+                        Text(
+                            text = "Buscar...",
+                            style = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Light),
+                            color = colors.textSecondary.copy(alpha = 0.5f)
+                        )
+                    },
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = colors.textPrimary,
+                        unfocusedTextColor = colors.textPrimary,
+                        cursorColor = colors.accent
+                    ),
+                    textStyle = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Light),
+                    singleLine = true
                 )
-        ) {
-            Text(
-                text = "Tu música, organizada.",
-                style = AppType.label.copy(fontSize = 11.sp),
-                color = colors.textSecondary.copy(alpha = 0.8f),
-                letterSpacing = 0.5.sp
-            )
+                
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                            onClick = onMenuClick
+                        )
+                ) {
+                    Text(
+                        text = "Tu música, organizada.",
+                        style = AppType.label.copy(fontSize = 11.sp),
+                        color = colors.textSecondary.copy(alpha = 0.8f),
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
         }
         
         IconButton(
-            onClick = { /* TODO: Buscar */ },
+            onClick = onSearchClick,
             modifier = Modifier.size(44.dp)
         ) {
             Text(
                 text = "⌕",
                 style = AppType.title.copy(fontSize = 24.sp),
-                color = colors.textSecondary
+                color = if (state.isSearchActive) colors.accent else colors.textSecondary
             )
+        }
+    }
+}
+
+@Composable
+private fun SearchSuggestionsOverlay(
+    songs: List<Song>,
+    onSongClick: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    Popup(
+        alignment = Alignment.TopCenter,
+        offset = androidx.compose.ui.unit.IntOffset(0, 300), // Más separación para no tapar el TextField
+        properties = PopupProperties(focusable = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .padding(horizontal = spacing.l)
+                .fillMaxWidth(0.7f),
+            color = colors.surfaceRaised,
+            shape = RoundedCornerShape(12.dp),
+            tonalElevation = 8.dp,
+            shadowElevation = 8.dp,
+            border = androidx.compose.foundation.BorderStroke(0.5.dp, colors.outline)
+        ) {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                if (songs.isEmpty()) {
+                    Text(
+                        text = "Sin resultados",
+                        style = AppType.label,
+                        color = colors.textSecondary.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .padding(horizontal = spacing.m, vertical = 12.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
+                } else {
+                    songs.forEach { song ->
+                        SearchSuggestionItem(
+                            song = song,
+                            onClick = { onSongClick(song) },
+                            onSwipeRight = { onAddToQueue(song) },
+                            colors = colors,
+                            spacing = spacing
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchSuggestionItem(
+    song: Song,
+    onClick: () -> Unit,
+    onSwipeRight: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount ->
+                        offsetX = (offsetX + dragAmount).coerceIn(0f, 200f)
+                    },
+                    onDragEnd = {
+                        if (offsetX > 100f) {
+                            onSwipeRight()
+                        }
+                        scope.launch {
+                            Animatable(offsetX).animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            ) {
+                                offsetX = value
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            Animatable(offsetX).animateTo(0f) {
+                                offsetX = value
+                            }
+                        }
+                    }
+                )
+            }
+            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 100f).coerceAtMost(1f)) else Color.Transparent)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer { translationX = offsetX }
+                .clickable(enabled = offsetX == 0f, onClick = onClick)
+                .padding(horizontal = spacing.m, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AuralisArtwork(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+                artworkReference = song.coverReference
+            )
+            
+            Spacer(modifier = Modifier.width(spacing.s))
+            
+            Column {
+                Text(
+                    text = song.title,
+                    style = AppType.body.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = song.artist ?: "Desconocido",
+                    style = AppType.label.copy(fontSize = 10.sp),
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -204,6 +435,7 @@ private fun MainContent(
     state: HomeUiState,
     onScanClick: () -> Unit,
     onSongClick: (Song) -> Unit,
+    onAddToQueue: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -271,6 +503,7 @@ private fun MainContent(
                     song = song,
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
+                    onSwipeRight = { onAddToQueue(song) },
                     colors = colors,
                     spacing = spacing
                 )
@@ -406,15 +639,12 @@ private fun PlaybackBar(
                     .padding(horizontal = spacing.m, vertical = spacing.s),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                AuralisArtwork(
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(ReproductorThemeTokens.shapes.small)
-                        .background(colors.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "♪", color = colors.accent)
-                }
+                        .clip(ReproductorThemeTokens.shapes.small),
+                    artworkReference = state.currentSong?.coverReference
+                )
                 
                 Spacer(modifier = Modifier.width(spacing.m))
                 
@@ -663,65 +893,93 @@ private fun SongItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
+    onSwipeRight: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    Row(
+    var offsetX by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else Color.Transparent)
-            .clickable(onClick = onClick)
-            .padding(horizontal = spacing.l, vertical = spacing.m),
-        verticalAlignment = Alignment.CenterVertically
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, dragAmount ->
+                        offsetX = (offsetX + dragAmount).coerceIn(0f, 300f)
+                    },
+                    onDragEnd = {
+                        if (offsetX > 150f) {
+                            onSwipeRight()
+                        }
+                        scope.launch {
+                            Animatable(offsetX).animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                            ) {
+                                offsetX = value
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            Animatable(offsetX).animateTo(0f) {
+                                offsetX = value
+                            }
+                        }
+                    }
+                )
+            }
+            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 150f).coerceAtMost(1f)) else Color.Transparent)
     ) {
-        Box(
+        Row(
             modifier = Modifier
-                .size(44.dp)
-                .clip(ReproductorThemeTokens.shapes.small)
-                .then(
-                    if (isCurrent) Modifier.background(ReproductorThemeTokens.primaryGradient)
-                    else Modifier.background(colors.surfaceRaised)
-                ),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .graphicsLayer { translationX = offsetX }
+                .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else colors.background)
+                .clickable(enabled = offsetX == 0f, onClick = onClick)
+                .padding(horizontal = spacing.l, vertical = spacing.m),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = if (isCurrent) "▶" else "♪",
-                color = if (isCurrent) Color.White else colors.textSecondary.copy(alpha = 0.4f),
-                style = AppType.title.copy(fontSize = 16.sp)
+            AuralisArtwork(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(ReproductorThemeTokens.shapes.small),
+                artworkReference = song.coverReference
             )
-        }
 
-        Spacer(modifier = Modifier.width(spacing.m))
+            Spacer(modifier = Modifier.width(spacing.m))
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = song.title,
-                style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
-                color = if (isCurrent) colors.accent else colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = (song.artist ?: "Artista desconocido").uppercase(),
-                style = AppType.label.copy(fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Normal),
-                color = if (isCurrent) colors.accentSecondary.copy(alpha = 0.7f) else colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = song.title,
+                    style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
+                    color = if (isCurrent) colors.accent else colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = (song.artist ?: "Artista desconocido").uppercase(),
+                    style = AppType.label.copy(fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Normal),
+                    color = if (isCurrent) colors.accentSecondary.copy(alpha = 0.7f) else colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
-        Spacer(modifier = Modifier.width(spacing.s))
+            Spacer(modifier = Modifier.width(spacing.s))
 
-        song.durationMs?.let { duration ->
-            Text(
-                text = formatDuration(duration),
-                style = AppType.timer,
-                color = colors.textSecondary,
-                fontSize = 11.sp
-            )
+            song.durationMs?.let { duration ->
+                Text(
+                    text = formatDuration(duration),
+                    style = AppType.timer,
+                    color = colors.textSecondary,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }

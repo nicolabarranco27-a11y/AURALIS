@@ -134,10 +134,13 @@ class DefaultLibraryScanner @Inject constructor(
     ): Boolean =
         existing.uri != audio.uri ||
             existing.dateModifiedEpochMs != audio.dateModifiedEpochMs ||
-            existing.sizeBytes != audio.sizeBytes
+            existing.sizeBytes != audio.sizeBytes ||
+            existing.coverUri.isNullOrEmpty()
 
     /** MediaStore provee la base; el extractor solo completa o corrige. */
     private suspend fun buildSong(audio: com.auralis.player.data.mediastore.MediaStoreAudio): Song {
+        val mediaStoreCoverUri = "content://media/external/audio/albumart/${audio.albumId}"
+        
         val base = Song(
             id = SongId(songIdFor(audio.mediaStoreId)),
             sourceUri = audio.uri,
@@ -151,10 +154,13 @@ class DefaultLibraryScanner @Inject constructor(
             discNumber = audio.discNumber,
             durationMs = audio.durationMs,
             dateAdded = audio.dateAddedEpochMs?.let(Instant::ofEpochMilli),
+            coverReference = mediaStoreCoverUri
         )
 
         return try {
             val metadata = metadataExtractor.extract(audio.uri.toUri())
+            val localCoverPath = saveArtworkIfMissing(audio.albumId, metadata.embeddedArtwork)
+            
             base.copy(
                 artist = metadata.artist ?: base.artist,
                 album = metadata.album ?: base.album,
@@ -164,11 +170,33 @@ class DefaultLibraryScanner @Inject constructor(
                 trackNumber = metadata.trackNumber ?: base.trackNumber,
                 discNumber = metadata.discNumber ?: base.discNumber,
                 durationMs = metadata.durationMs ?: base.durationMs,
+                coverReference = localCoverPath ?: base.coverReference
             )
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (t: Throwable) {
             base
+        }
+    }
+
+    private fun getCoverPath(albumId: Long): java.io.File {
+        val dir = java.io.File(context.filesDir, "covers")
+        if (!dir.exists()) dir.mkdirs()
+        return java.io.File(dir, "album_$albumId.bin")
+    }
+
+    private suspend fun saveArtworkIfMissing(albumId: Long, artwork: ByteArray?): String? {
+        if (artwork == null) return null
+        val file = getCoverPath(albumId)
+        if (file.exists()) return file.absolutePath
+
+        return withContext(ioDispatcher) {
+            try {
+                file.writeBytes(artwork)
+                file.absolutePath
+            } catch (e: Exception) {
+                null
+            }
         }
     }
 

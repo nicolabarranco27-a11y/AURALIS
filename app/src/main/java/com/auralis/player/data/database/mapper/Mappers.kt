@@ -35,6 +35,7 @@ fun SongEntity.toDomain(): Song = Song(
     playCount = playCount,
     lastPlayedAt = lastPlayedAtEpochMs?.let(Instant::ofEpochMilli),
     isFavorite = isFavorite,
+    coverReference = coverUri,
 )
 
 fun Song.toEntity(
@@ -64,6 +65,8 @@ fun Song.toEntity(
     playCount = playCount,
     lastPlayedAtEpochMs = lastPlayedAt?.toEpochMilli(),
     isFavorite = isFavorite,
+    coverUri = coverReference,
+    isAvailable = true,
 )
 
 fun AlbumEntity.toDomain(): Album = Album(
@@ -71,6 +74,7 @@ fun AlbumEntity.toDomain(): Album = Album(
     title = title,
     artist = artist,
     year = year,
+    coverReference = coverUri,
     songCount = songCount,
 )
 

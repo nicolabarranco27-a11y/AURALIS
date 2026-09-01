@@ -23,7 +23,7 @@ import com.auralis.player.data.database.entity.SongEntity
         PlaylistEntity::class,
         PlaylistSongEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +36,17 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE songs ADD COLUMN isAvailable INTEGER NOT NULL DEFAULT 1",
+                )
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE songs ADD COLUMN coverUri TEXT DEFAULT NULL",
+                )
+                db.execSQL(
+                    "ALTER TABLE albums ADD COLUMN coverUri TEXT DEFAULT NULL",
                 )
             }
         }

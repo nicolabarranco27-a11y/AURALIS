@@ -258,6 +258,7 @@ class HomeViewModelTest {
         override fun setShuffleEnabled(enabled: Boolean) {}
         override fun setRepeatMode(mode: com.auralis.player.domain.model.RepeatMode) {}
         override fun setQueue(items: List<com.auralis.player.domain.model.QueueItem>, startIndex: Int) {}
+        override fun addSongToQueue(song: com.auralis.player.domain.model.Song) {}
     }
 
     private class FakeLibraryRepository(private val songs: List<Song> = emptyList()) : LibraryRepository {

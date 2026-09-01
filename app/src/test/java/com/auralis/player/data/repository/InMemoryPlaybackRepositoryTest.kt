@@ -136,4 +136,20 @@ class InMemoryPlaybackRepositoryTest {
 
         assertEquals("y", repository.getCurrentState().currentSong?.id?.value)
     }
+
+    @Test
+    fun `addSongToQueue agrega a continuacion sin cambiar la actual`() = runTest {
+        loadQueue() // a, b, c. Current: a
+        val extra = song("d")
+
+        repository.addSongToQueue(extra) // a, d, b, c
+
+        assertEquals("a", repository.getCurrentState().currentSong?.id?.value)
+        
+        repository.skipNext()
+        assertEquals("d", repository.getCurrentState().currentSong?.id?.value)
+        
+        repository.skipNext()
+        assertEquals("b", repository.getCurrentState().currentSong?.id?.value)
+    }
 }

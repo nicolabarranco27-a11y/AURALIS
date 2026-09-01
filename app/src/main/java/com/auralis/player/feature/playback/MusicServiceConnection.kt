@@ -95,7 +95,8 @@ class MusicServiceConnection @Inject constructor(
             sourceUri = requestMetadata.mediaUri?.toString() ?: "",
             title = mediaMetadata.title?.toString() ?: "Unknown",
             artist = mediaMetadata.artist?.toString(),
-            durationMs = mediaMetadata.extras?.getLong("duration_ms")
+            durationMs = mediaMetadata.extras?.getLong("duration_ms"),
+            coverReference = mediaMetadata.artworkUri?.toString()
         )
     }
 }

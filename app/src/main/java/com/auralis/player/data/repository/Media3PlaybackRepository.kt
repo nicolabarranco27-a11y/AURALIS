@@ -20,6 +20,8 @@ class Media3PlaybackRepository @Inject constructor(
     private val serviceConnection: MusicServiceConnection
 ) : PlaybackRepository {
 
+    private var lastQueuedIndex: Int = -1
+
     override fun observePlaybackState(): Flow<PlaybackState> = serviceConnection.playbackState
 
     override suspend fun getCurrentState(): PlaybackState = serviceConnection.playbackState.value
@@ -59,9 +61,26 @@ class Media3PlaybackRepository @Inject constructor(
     override fun setQueue(items: List<QueueItem>, startIndex: Int) {
         val controller = serviceConnection.mediaController ?: return
         val mediaItems = items.map { it.song.toMediaItem() }
+        lastQueuedIndex = startIndex
         controller.setMediaItems(mediaItems, startIndex, 0L)
         controller.prepare()
         controller.play()
+    }
+
+    override fun addSongToQueue(song: Song) {
+        val controller = serviceConnection.mediaController ?: return
+        val currentIndex = controller.currentMediaItemIndex
+        
+        // Si el índice guardado es inválido o menor al actual, empezamos a insertar después del actual.
+        // Si es válido, insertamos después del último insertado para mantener el orden A -> B -> C.
+        val targetIndex = if (lastQueuedIndex < currentIndex) {
+            currentIndex + 1
+        } else {
+            lastQueuedIndex + 1
+        }
+
+        controller.addMediaItem(targetIndex, song.toMediaItem())
+        lastQueuedIndex = targetIndex
     }
 
     private fun Song.toMediaItem(): MediaItem {
@@ -69,6 +88,7 @@ class Media3PlaybackRepository @Inject constructor(
             .setTitle(title)
             .setArtist(artist)
             .setAlbumTitle(album)
+            .setArtworkUri(coverReference?.let { Uri.parse(it) })
             .setExtras(Bundle().apply {
                 durationMs?.let { putLong("duration_ms", it) }
             })

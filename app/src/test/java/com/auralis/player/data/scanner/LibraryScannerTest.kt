@@ -79,6 +79,7 @@ class LibraryScannerTest {
         size: Long? = 1000L,
     ) = MediaStoreAudio(
         mediaStoreId = id,
+        albumId = id * 10,
         uri = "content://media/audio/$id",
         displayName = "$title.mp3",
         title = title,

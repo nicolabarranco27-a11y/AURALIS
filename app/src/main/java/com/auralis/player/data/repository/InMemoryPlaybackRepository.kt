@@ -24,6 +24,7 @@ class InMemoryPlaybackRepository @Inject constructor() : PlaybackRepository {
 
     private var queue: List<QueueItem> = emptyList()
     private var currentIndex: Int = NO_INDEX
+    private var lastQueuedIndex: Int = NO_INDEX
 
     override suspend fun getCurrentState(): PlaybackState = _state.value
 
@@ -70,7 +71,34 @@ class InMemoryPlaybackRepository @Inject constructor() : PlaybackRepository {
         } else {
             startIndex.coerceIn(0, items.lastIndex)
         }
+        lastQueuedIndex = currentIndex
         update { it.copyFromQueue() }
+    }
+
+    override fun addSongToQueue(song: com.auralis.player.domain.model.Song) {
+        val targetIndex = if (lastQueuedIndex < currentIndex) {
+            currentIndex + 1
+        } else {
+            lastQueuedIndex + 1
+        }
+
+        val mutableQueue = queue.toMutableList()
+        val newItem = QueueItem(java.util.UUID.randomUUID().toString(), song)
+        
+        if (targetIndex > mutableQueue.size) {
+            mutableQueue.add(newItem)
+        } else {
+            mutableQueue.add(targetIndex, newItem)
+        }
+        
+        queue = mutableQueue
+        
+        if (currentIndex == NO_INDEX) {
+            currentIndex = 0
+            update { it.copyFromQueue() }
+        }
+        
+        lastQueuedIndex = targetIndex
     }
 
     private fun moveTo(index: Int) {
