@@ -11,6 +11,9 @@ data class PlaybackState(
     val durationMs: Long? = null,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    val audioSessionId: Int = 0,
+    /** Mensaje del ultimo error de reproduccion, o null si no hay error. */
+    val errorMessage: String? = null,
 ) {
     companion object {
         val IDLE = PlaybackState()

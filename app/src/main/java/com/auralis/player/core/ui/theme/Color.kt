@@ -34,3 +34,20 @@ val DarkAppColors = AppColors(
     accentDim = Color(0xFF1A3BB0),
     onError = Color(0xFFFF5252),
 )
+
+/**
+ * Paleta clara equivalente: superficies escalonadas sobre blanco,
+ * conservando el mismo acento tecnologico de la paleta oscura.
+ */
+val LightAppColors = AppColors(
+    background = Color(0xFFF7F8FA),
+    surface = Color(0xFFFFFFFF),
+    surfaceRaised = Color(0xFFEDEFF3),
+    outline = Color(0xFFD0D4DC),
+    textPrimary = Color(0xFF0B0E14),
+    textSecondary = Color(0xFF5A606B),
+    accent = Color(0xFF2E5BFF),
+    accentSecondary = Color(0xFF8A2BE2),
+    accentDim = Color(0xFF1A3BB0),
+    onError = Color(0xFFD32F2F),
+)

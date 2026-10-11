@@ -218,6 +218,7 @@ class HomeViewModelTest {
         val monitor = FakeScanMonitor()
         val repository = FakeLibraryRepository()
         val playback = FakePlaybackRepository()
+        val favorites = FakeFavoritesRepository()
 
         val viewModel = HomeViewModel(
             context,
@@ -225,6 +226,7 @@ class HomeViewModelTest {
             playback,
             scheduler,
             monitor,
+            favorites,
         )
 
         assertFalse(viewModel.uiState.first().hasPermission)
@@ -241,9 +243,23 @@ class HomeViewModelTest {
         playbackRepository: com.auralis.player.domain.repository.PlaybackRepository = FakePlaybackRepository(),
         scanScheduler: LibraryScanScheduler = FakeScanScheduler(context),
         scanMonitor: LibraryScanMonitor = FakeScanMonitor(),
+        favoritesRepository: com.auralis.player.domain.repository.FavoritesRepository = FakeFavoritesRepository(),
     ): HomeViewModel {
         grantAudioPermission(hasPermission)
-        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor)
+        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor, favoritesRepository)
+    }
+
+    private class FakeFavoritesRepository : com.auralis.player.domain.repository.FavoritesRepository {
+        private val favorites = MutableStateFlow<Set<SongId>>(emptySet())
+        override suspend fun isFavorite(songId: SongId): Boolean = favorites.value.contains(songId)
+        override fun observeFavorites(): kotlinx.coroutines.flow.Flow<Set<SongId>> = favorites.asStateFlow()
+        override suspend fun addFavorite(songId: SongId) { favorites.value = favorites.value + songId }
+        override suspend fun removeFavorite(songId: SongId) { favorites.value = favorites.value - songId }
+        override suspend fun toggleFavorite(songId: SongId): Boolean {
+            val isFav = isFavorite(songId)
+            if (isFav) removeFavorite(songId) else addFavorite(songId)
+            return !isFav
+        }
     }
 
     private class FakePlaybackRepository : com.auralis.player.domain.repository.PlaybackRepository {
@@ -259,6 +275,9 @@ class HomeViewModelTest {
         override fun setRepeatMode(mode: com.auralis.player.domain.model.RepeatMode) {}
         override fun setQueue(items: List<com.auralis.player.domain.model.QueueItem>, startIndex: Int) {}
         override fun addSongToQueue(song: com.auralis.player.domain.model.Song) {}
+        override fun observeQueue(): kotlinx.coroutines.flow.Flow<List<com.auralis.player.domain.model.Song>> = kotlinx.coroutines.flow.MutableStateFlow<List<com.auralis.player.domain.model.Song>>(emptyList()).asStateFlow()
+        override fun moveQueueItem(fromIndex: Int, toIndex: Int) {}
+        override fun removeQueueItem(index: Int) {}
     }
 
     private class FakeLibraryRepository(private val songs: List<Song> = emptyList()) : LibraryRepository {

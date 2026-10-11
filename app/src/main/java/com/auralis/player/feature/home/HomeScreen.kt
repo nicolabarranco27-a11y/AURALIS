@@ -6,13 +6,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,8 +27,18 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -35,8 +48,11 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.R
+import com.auralis.player.core.common.format.formatDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
 import com.auralis.player.core.ui.components.QueueFeedbackOverlay
+import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -149,7 +165,7 @@ fun HomeScreen(
                         )
                     }
                     state.songs.isEmpty() && state.scanStatus is ScanDisplayStatus.Running -> {
-                        LoadingState(colors = colors, spacing = spacing)
+                        LoadingState(colors = colors, message = "Sincronizando...")
                     }
                     state.scanStatus is ScanDisplayStatus.Failed -> {
                         FullScreenState(
@@ -172,6 +188,7 @@ fun HomeScreen(
                                     viewModel.addToQueue(it)
                                     showQueueFeedback = true
                                 },
+                                onToggleFavorite = { viewModel.toggleFavorite(it) },
                                 onPlayPauseClick = { viewModel.togglePlayPause() },
                                 onPlayerClick = onPlayerClick,
                                 onSeek = { viewModel.seekTo(it) },
@@ -209,32 +226,32 @@ private fun HomeHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(start = 4.dp, end = spacing.l, top = 0.dp, bottom = 0.dp),
+            .padding(horizontal = spacing.l, vertical = spacing.xs),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Contenedor Circular del Logo
+        // Logo Auralis
         Box(
             modifier = Modifier
-                .size(70.dp)
-                .clip(androidx.compose.foundation.shape.CircleShape)
+                .size(40.dp)
+                .clip(CircleShape)
                 .clickable(
                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = ripple(bounded = true, radius = 34.dp),
+                    indication = ripple(bounded = true, radius = 20.dp),
                     onClick = onMenuClick
                 ),
             contentAlignment = Alignment.Center
         ) {
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = com.auralis.player.R.drawable.logo_auralis),
+            Image(
+                painter = painterResource(id = R.drawable.logo_auralis),
                 contentDescription = "Logo Auralis",
                 modifier = Modifier
-                    .size(80.dp)
-                    .graphicsLayer(scaleX = 1.24f, scaleY = 1.24f),
-                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                    .size(36.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Fit
             )
         }
         
-        Spacer(modifier = Modifier.width(spacing.s))
+        Spacer(modifier = Modifier.width(spacing.m))
 
         Box(modifier = Modifier.weight(1f)) {
             if (state.isSearchActive) {
@@ -248,7 +265,7 @@ private fun HomeHeader(
                     placeholder = {
                         Text(
                             text = "Buscar...",
-                            style = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Light),
+                            style = AppType.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Light),
                             color = colors.textSecondary.copy(alpha = 0.5f)
                         )
                     },
@@ -261,7 +278,7 @@ private fun HomeHeader(
                         unfocusedTextColor = colors.textPrimary,
                         cursorColor = colors.accent
                     ),
-                    textStyle = AppType.body.copy(fontSize = 16.sp, fontWeight = FontWeight.Light),
+                    textStyle = AppType.body.copy(fontSize = 15.sp, fontWeight = FontWeight.Light),
                     singleLine = true
                 )
                 
@@ -271,7 +288,6 @@ private fun HomeHeader(
             } else {
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .clickable(
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null,
@@ -279,9 +295,14 @@ private fun HomeHeader(
                         )
                 ) {
                     Text(
+                        text = "Auralis",
+                        style = AppType.title.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        color = colors.textPrimary
+                    )
+                    Text(
                         text = "Tu música, organizada.",
-                        style = AppType.label.copy(fontSize = 11.sp),
-                        color = colors.textSecondary.copy(alpha = 0.8f),
+                        style = AppType.label.copy(fontSize = 10.sp),
+                        color = colors.textSecondary.copy(alpha = 0.7f),
                         letterSpacing = 0.5.sp
                     )
                 }
@@ -290,12 +311,12 @@ private fun HomeHeader(
         
         IconButton(
             onClick = onSearchClick,
-            modifier = Modifier.size(44.dp)
+            modifier = Modifier.size(40.dp)
         ) {
-            Text(
-                text = "⌕",
-                style = AppType.title.copy(fontSize = 24.sp),
-                color = if (state.isSearchActive) colors.accent else colors.textSecondary
+            Icon(
+                imageVector = Icons.Rounded.Search,
+                contentDescription = "Buscar",
+                tint = if (state.isSearchActive) colors.accent else colors.textSecondary
             )
         }
     }
@@ -309,9 +330,12 @@ private fun SearchSuggestionsOverlay(
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    val density = LocalDensity.current
+    val offsetY = remember(density) { with(density) { 80.dp.roundToPx() } }
+
     Popup(
         alignment = Alignment.TopCenter,
-        offset = androidx.compose.ui.unit.IntOffset(0, 300), // Más separación para no tapar el TextField
+        offset = androidx.compose.ui.unit.IntOffset(0, offsetY),
         properties = PopupProperties(focusable = false)
     ) {
         Surface(
@@ -436,6 +460,7 @@ private fun MainContent(
     onScanClick: () -> Unit,
     onSongClick: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
+    onToggleFavorite: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -445,41 +470,68 @@ private fun MainContent(
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    var selectedFilter by remember { mutableStateOf("Todas") }
+
+    val filteredSongs = remember(state.songs, selectedFilter) {
+        when (selectedFilter) {
+            "Favoritos" -> state.songs.filter { it.isFavorite }
+            else -> state.songs
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 140.dp)
         ) {
-            // BIBLIOTECA section
+            // TU BIBLIOTECA section
             item {
+                val albumCount = remember(state.songs) {
+                    state.songs.mapNotNull { it.album }.toSet().size.let { if (it > 0) it else 4 }
+                }
                 SectionHeader(
-                    title = "BIBLIOTECA",
-                    subtitle = "${state.songs.size} canciones",
+                    title = "TU BIBLIOTECA",
+                    subtitle = "${state.songs.size} canciones · $albumCount álbumes",
                     colors = colors,
                     spacing = spacing
                 )
             }
 
-            // CONTINUAR ESCUCHANDO section
+            // ACCESO RÁPIDO section (Carrusel Horizontal)
             item {
-                ContinuarEscuchandoCard(colors = colors, spacing = spacing)
+                QuickAccessRow(
+                    songs = state.songs,
+                    onSongClick = onSongClick,
+                    colors = colors,
+                    spacing = spacing
+                )
             }
 
             // CANCIONES section
             item {
-                Spacer(modifier = Modifier.height(spacing.l))
+                Spacer(modifier = Modifier.height(spacing.s))
                 SectionHeader(
                     title = "CANCIONES",
-                    subtitle = if (state.playbackState.shuffleEnabled) "Modo aleatorio" else "Orden secuencial",
+                    subtitle = null,
                     trailingContent = {
                         IconButton(onClick = onToggleShuffle) {
-                            Text(
-                                text = if (state.playbackState.shuffleEnabled) "↝" else "⇄",
-                                style = AppType.title.copy(fontSize = 20.sp),
-                                color = if (state.playbackState.shuffleEnabled) colors.accent else colors.textSecondary
+                            Icon(
+                                imageVector = Icons.Rounded.Shuffle,
+                                contentDescription = "Aleatorio",
+                                tint = if (state.playbackState.shuffleEnabled) colors.accent else colors.textSecondary
                             )
                         }
                     },
+                    colors = colors,
+                    spacing = spacing
+                )
+            }
+
+            // BARRA DE FILTROS (Chips)
+            item {
+                FilterChipsRow(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = { selectedFilter = it },
                     colors = colors,
                     spacing = spacing
                 )
@@ -497,13 +549,14 @@ private fun MainContent(
                 }
             }
 
-            items(state.songs, key = { it.id.value }) { song ->
+            items(filteredSongs, key = { it.id.value }) { song ->
                 val isCurrent = state.playbackState.currentSong?.id == song.id
                 SongItem(
                     song = song,
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
                     onSwipeRight = { onAddToQueue(song) },
+                    onToggleFavorite = { onToggleFavorite(song) },
                     colors = colors,
                     spacing = spacing
                 )
@@ -562,17 +615,20 @@ private fun PlaybackBar(
     spacing: AppSpacing,
     modifier: Modifier = Modifier
 ) {
-    var sliderValue by remember(state.positionMs) { mutableFloatStateOf(state.positionMs.toFloat()) }
-    var isDragging by remember { mutableStateOf(false) }
+    val duration = state.durationMs ?: 0L
+    val progress = if (duration > 0) (state.positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
     val swipeOffsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
     Surface(
         onClick = onPlayerClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = ReproductorThemeTokens.shapes.medium,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = spacing.s),
+        shape = RoundedCornerShape(16.dp),
         color = colors.surfaceRaised,
-        tonalElevation = 8.dp
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp
     ) {
         Column {
             Row(
@@ -641,8 +697,8 @@ private fun PlaybackBar(
             ) {
                 AuralisArtwork(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(ReproductorThemeTokens.shapes.small),
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(8.dp)),
                     artworkReference = state.currentSong?.coverReference
                 )
                 
@@ -659,7 +715,7 @@ private fun PlaybackBar(
                     Column {
                         Text(
                             text = song?.title ?: "",
-                            style = AppType.body.copy(fontWeight = FontWeight.Bold),
+                            style = AppType.body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
                             color = colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -675,55 +731,23 @@ private fun PlaybackBar(
                 }
                 
                 IconButton(onClick = onPlayPauseClick) {
-                    Text(
-                        text = if (state.isPlaying) "‖" else "▶",
-                        style = AppType.title,
-                        color = colors.textPrimary
+                    Icon(
+                        imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pausa" else "Reproducir",
+                        tint = colors.textPrimary
                     )
                 }
             }
             
-            if (state.durationMs != null && state.durationMs > 0) {
-                Slider(
-                    value = if (isDragging) sliderValue else state.positionMs.toFloat(),
-                    onValueChange = {
-                        isDragging = true
-                        sliderValue = it
-                    },
-                    onValueChangeFinished = {
-                        isDragging = false
-                        onSeek(sliderValue.toLong())
-                    },
-                    valueRange = 0f..state.durationMs.toFloat(),
+            if (duration > 0) {
+                LinearProgressIndicator(
+                    progress = { progress },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(16.dp)
-                        .padding(horizontal = spacing.m),
-                    colors = SliderDefaults.colors(
-                        thumbColor = colors.textPrimary,
-                        activeTrackColor = colors.accent,
-                        inactiveTrackColor = colors.outline
-                    )
+                        .height(3.dp),
+                    color = colors.accent,
+                    trackColor = colors.outline.copy(alpha = 0.2f)
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = spacing.m, end = spacing.m, bottom = spacing.xs),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatDuration(if (isDragging) sliderValue.toLong() else state.positionMs),
-                        style = AppType.timer,
-                        color = colors.textSecondary,
-                        fontSize = 10.sp
-                    )
-                    Text(
-                        text = formatDuration(state.durationMs),
-                        style = AppType.timer,
-                        color = colors.textSecondary,
-                        fontSize = 10.sp
-                    )
-                }
             }
         }
     }
@@ -764,44 +788,113 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun ContinuarEscuchandoCard(
+private fun QuickAccessRow(
+    songs: List<Song>,
+    onSongClick: (Song) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = spacing.l)
-            .clip(ReproductorThemeTokens.shapes.medium)
-            .background(colors.surfaceRaised.copy(alpha = 0.4f))
-            .clickable { /* TODO: Resume Playback */ }
-            .padding(spacing.m),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(ReproductorThemeTokens.shapes.small)
-                .background(colors.accent.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "▶",
-                color = colors.accent,
-                style = AppType.title.copy(fontSize = 16.sp)
-            )
+    val quickSongs = remember(songs) {
+        val favorites = songs.filter { it.isFavorite }
+        if (favorites.isNotEmpty()) favorites.take(5) else songs.take(5)
+    }
+
+    if (quickSongs.isNotEmpty()) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = spacing.l),
+                horizontalArrangement = Arrangement.spacedBy(spacing.m)
+            ) {
+                items(quickSongs, key = { "quick_${it.id.value}" }) { song ->
+                    QuickAccessCard(
+                        song = song,
+                        onClick = { onSongClick(song) },
+                        colors = colors,
+                        spacing = spacing
+                    )
+                }
+            }
         }
-        Spacer(modifier = Modifier.width(spacing.m))
-        Column {
-            Text(
-                text = "Continuar escuchando",
-                style = AppType.body.copy(fontWeight = FontWeight.SemiBold),
-                color = colors.textPrimary
-            )
-            Text(
-                text = "Toca para reanudar la última sesión",
-                style = AppType.label.copy(fontSize = 10.sp),
-                color = colors.textSecondary
+    }
+}
+
+@Composable
+private fun QuickAccessCard(
+    song: Song,
+    onClick: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    Column(
+        modifier = Modifier
+            .width(80.dp)
+            .clickable(onClick = onClick)
+    ) {
+        AuralisArtwork(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(RoundedCornerShape(12.dp)),
+            artworkReference = song.coverReference
+        )
+        Spacer(modifier = Modifier.height(spacing.xs))
+        Text(
+            text = song.title,
+            style = AppType.body.copy(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            text = song.artist ?: "Desconocido",
+            style = AppType.label.copy(fontSize = 9.sp),
+            color = colors.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun FilterChipsRow(
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    val filters = listOf("Todas", "Favoritos")
+
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = spacing.l),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        modifier = Modifier.padding(vertical = spacing.xs)
+    ) {
+        items(filters) { filter ->
+            val isSelected = filter == selectedFilter
+            FilterChip(
+                selected = isSelected,
+                onClick = { onFilterSelected(filter) },
+                label = {
+                    Text(
+                        text = filter,
+                        style = AppType.label.copy(
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        )
+                    )
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = colors.surfaceRaised,
+                    labelColor = colors.textSecondary,
+                    selectedContainerColor = colors.accent,
+                    selectedLabelColor = Color.White
+                ),
+                border = FilterChipDefaults.filterChipBorder(
+                    enabled = true,
+                    selected = isSelected,
+                    borderColor = colors.outline.copy(alpha = 0.3f),
+                    selectedBorderColor = Color.Transparent
+                ),
+                shape = RoundedCornerShape(percent = 50)
             )
         }
     }
@@ -864,36 +957,12 @@ private fun FullScreenState(
 }
 
 @Composable
-private fun LoadingState(
-    colors: AppColors,
-    spacing: AppSpacing
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        CircularProgressIndicator(
-            color = colors.accent,
-            strokeWidth = 1.dp,
-            modifier = Modifier.size(48.dp)
-        )
-        Spacer(modifier = Modifier.height(spacing.l))
-        Text(
-            text = "Sincronizando...".uppercase(),
-            style = AppType.label,
-            color = colors.accent,
-            letterSpacing = 3.sp
-        )
-    }
-}
-
-@Composable
 private fun SongItem(
     song: Song,
     isCurrent: Boolean,
     onClick: () -> Unit,
     onSwipeRight: () -> Unit,
+    onToggleFavorite: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
@@ -930,7 +999,7 @@ private fun SongItem(
                     }
                 )
             }
-            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 150f).coerceAtMost(1f)) else Color.Transparent)
+            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 100f).coerceAtMost(1f)) else Color.Transparent)
     ) {
         Row(
             modifier = Modifier
@@ -980,13 +1049,19 @@ private fun SongItem(
                     fontSize = 11.sp
                 )
             }
+
+            IconButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (song.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
+                    tint = if (song.isFavorite) Color(0xFFE53935) else colors.textSecondary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
 
-private fun formatDuration(durationMs: Long): String {
-    val totalSeconds = durationMs / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
-}

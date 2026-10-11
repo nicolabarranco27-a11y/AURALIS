@@ -138,6 +138,25 @@ class InMemoryPlaybackRepositoryTest {
     }
 
     @Test
+    fun `addSongToQueue sobre cola vacia no falla y arranca la reproduccion`() = runTest {
+        repository.addSongToQueue(song("only"))
+
+        assertEquals("only", repository.getCurrentState().currentSong?.id?.value)
+    }
+
+    @Test
+    fun `addSongToQueue inserta despues de la actual tras saltar`() = runTest {
+        loadQueue() // a, b, c. Current: a
+        repository.skipNext() // current: b, lastQueued sigue en a
+
+        repository.addSongToQueue(song("d")) // a, b, d, c
+
+        assertEquals("b", repository.getCurrentState().currentSong?.id?.value)
+        repository.skipNext()
+        assertEquals("d", repository.getCurrentState().currentSong?.id?.value)
+    }
+
+    @Test
     fun `addSongToQueue agrega a continuacion sin cambiar la actual`() = runTest {
         loadQueue() // a, b, c. Current: a
         val extra = song("d")
@@ -151,5 +170,46 @@ class InMemoryPlaybackRepositoryTest {
         
         repository.skipNext()
         assertEquals("b", repository.getCurrentState().currentSong?.id?.value)
+    }
+
+    @Test
+    fun `observeQueue refleja la cola y sus modificaciones`() = runTest {
+        loadQueue()
+
+        assertEquals(listOf("a", "b", "c"), repository.observeQueue().first().map { it.id.value })
+
+        repository.addSongToQueue(song("d"))
+        assertEquals(listOf("a", "d", "b", "c"), repository.observeQueue().first().map { it.id.value })
+
+        repository.moveQueueItem(fromIndex = 3, toIndex = 1)
+        assertEquals(listOf("a", "c", "d", "b"), repository.observeQueue().first().map { it.id.value })
+
+        repository.removeQueueItem(index = 0)
+        assertEquals(listOf("c", "d", "b"), repository.observeQueue().first().map { it.id.value })
+    }
+
+    @Test
+    fun `moveQueueItem mantiene la cancion actual acorde al reorden`() = runTest {
+        loadQueue()
+        repository.play()
+        repository.skipNext() // current: b (index 1)
+
+        repository.moveQueueItem(fromIndex = 2, toIndex = 0) // [c, a, b], current sigue en "b" (index 2)
+
+        assertEquals("b", repository.getCurrentState().currentSong?.id?.value)
+        repository.skipPrevious()
+        assertEquals("a", repository.getCurrentState().currentSong?.id?.value)
+    }
+
+    @Test
+    fun `removeQueueItem de la cancion actual pasa a la siguiente`() = runTest {
+        loadQueue()
+        repository.play()
+        repository.skipNext() // current: b (index 1)
+
+        repository.removeQueueItem(index = 1) // a, c
+
+        assertEquals("c", repository.getCurrentState().currentSong?.id?.value)
+        assertTrue(repository.getCurrentState().isPlaying)
     }
 }

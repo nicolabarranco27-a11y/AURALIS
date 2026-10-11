@@ -9,10 +9,12 @@ import com.auralis.player.data.scanner.LibraryScanScheduler
 import com.auralis.player.data.scanner.ScanOutcome
 import com.auralis.player.data.scanner.hasAudioAccess
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.repository.FavoritesRepository
 import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 sealed interface ScanDisplayStatus {
@@ -53,6 +56,7 @@ class HomeViewModel @Inject constructor(
     private val playbackRepository: PlaybackRepository,
     private val scanScheduler: LibraryScanScheduler,
     private val scanMonitor: LibraryScanMonitor,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(hasPermission = context.hasAudioAccess()))
@@ -73,6 +77,7 @@ class HomeViewModel @Inject constructor(
                     .replace('ó', 'o')
                     .replace('ú', 'u')
                     .replace('ü', 'u')
+                    .replace('ñ', 'n')
                 emit(libraryRepository.searchSongs(normalizedQuery).take(4))
             } else {
                 emit(emptyList())
@@ -121,12 +126,16 @@ class HomeViewModel @Inject constructor(
     }
 
     fun onSongClick(song: Song) {
-        val currentSongs = uiState.value.songs
-        val index = currentSongs.indexOf(song).coerceAtLeast(0)
-        val queueItems = currentSongs.map { 
-            com.auralis.player.domain.model.QueueItem(java.util.UUID.randomUUID().toString(), it)
+        viewModelScope.launch {
+            val currentSongs = uiState.value.songs
+            val index = currentSongs.indexOf(song).coerceAtLeast(0)
+            val queueItems = withContext(Dispatchers.Default) {
+                currentSongs.map { 
+                    com.auralis.player.domain.model.QueueItem(java.util.UUID.randomUUID().toString(), it)
+                }
+            }
+            playbackRepository.setQueue(queueItems, index)
         }
-        playbackRepository.setQueue(queueItems, index)
     }
 
     fun togglePlayPause() {
@@ -151,6 +160,12 @@ class HomeViewModel @Inject constructor(
 
     fun addToQueue(song: Song) {
         playbackRepository.addSongToQueue(song)
+    }
+
+    fun toggleFavorite(song: Song) {
+        viewModelScope.launch {
+            favoritesRepository.toggleFavorite(song.id)
+        }
     }
 
     fun toggleShuffle() {
@@ -185,7 +200,11 @@ class HomeViewModel @Inject constructor(
     }
 
     fun onScreenShown() {
-        // Called when screen becomes visible
+        // Escaneo automatico de arranque: solo si ya hay permiso y la
+        // biblioteca esta vacia, para no re-escaneos innecesarios.
+        if (context.hasAudioAccess() && _uiState.value.songs.isEmpty()) {
+            scanScheduler.requestScan()
+        }
     }
 
     private fun LibraryScanMonitor.Status.toDisplayStatus(): ScanDisplayStatus = when (this) {

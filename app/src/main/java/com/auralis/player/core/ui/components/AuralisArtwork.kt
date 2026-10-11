@@ -1,10 +1,13 @@
 package com.auralis.player.core.ui.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -18,7 +21,7 @@ import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 
 /**
  * Componente centralizado para mostrar el artwork de canciones, álbumes o playlists.
- * Implementa el sistema de fallback global utilizando el logo de EstalingradoCorp.
+ * Implementa el sistema de fallback global con la identidad visual de Auralis.
  */
 @Composable
 fun AuralisArtwork(
@@ -31,29 +34,44 @@ fun AuralisArtwork(
     val fallbackPainter = painterResource(id = R.drawable.placeholder_ec)
     val context = LocalContext.current
     
+    val validReference = remember(artworkReference) {
+        when (artworkReference) {
+            is String -> artworkReference.takeIf { it.isNotBlank() }
+            else -> artworkReference
+        }
+    }
+
     Box(
         modifier = modifier.background(colors.surfaceRaised),
         contentAlignment = Alignment.Center
     ) {
-        if (artworkReference != null) {
+        if (validReference != null) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(artworkReference)
+                    .data(validReference)
                     .crossfade(true)
                     .build(),
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
+                placeholder = fallbackPainter,
                 error = fallbackPainter,
                 fallback = fallbackPainter
             )
         } else {
-            Image(
-                painter = fallbackPainter,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = contentScale
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(colors.surfaceRaised),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.MusicNote,
+                    contentDescription = contentDescription,
+                    tint = colors.accent.copy(alpha = 0.35f),
+                    modifier = Modifier.fillMaxSize(0.5f)
+                )
+            }
         }
     }
 }

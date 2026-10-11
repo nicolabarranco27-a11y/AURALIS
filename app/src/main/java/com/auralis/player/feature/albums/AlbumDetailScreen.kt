@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +28,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.common.format.formatDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
 import com.auralis.player.core.ui.components.QueueFeedbackOverlay
+import com.auralis.player.core.ui.components.MiniPlayerBar
+import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -70,6 +77,7 @@ fun AlbumDetailScreen(
                                 viewModel.addToQueue(it)
                                 showQueueFeedback = true
                             },
+                            onToggleFavorite = { viewModel.toggleFavorite(it) },
                             onPlayPauseClick = { viewModel.togglePlayPause() },
                             onPlayerClick = onPlayerClick,
                             onSeek = { viewModel.seekTo(it) },
@@ -96,6 +104,7 @@ private fun AlbumDetailContent(
     onBackClick: () -> Unit,
     onSongClick: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
+    onToggleFavorite: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -104,7 +113,7 @@ private fun AlbumDetailContent(
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    val coverReference = remember(state.songs) { state.songs.firstOrNull()?.coverReference }
+    val coverReference = remember(state.songs) { state.songs.firstOrNull { !it.coverReference.isNullOrBlank() }?.coverReference }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -129,6 +138,7 @@ private fun AlbumDetailContent(
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
                     onSwipeRight = { onAddToQueue(song) },
+                    onToggleFavorite = { onToggleFavorite(song) },
                     colors = colors,
                     spacing = spacing
                 )
@@ -141,7 +151,7 @@ private fun AlbumDetailContent(
         }
 
         if (state.playbackState.currentSong != null) {
-            PlaybackBar(
+            MiniPlayerBar(
                 state = state.playbackState,
                 onPlayPauseClick = onPlayPauseClick,
                 onPlayerClick = onPlayerClick,
@@ -176,7 +186,11 @@ private fun AlbumHeader(
             onClick = onBackClick,
             modifier = Modifier.offset(x = (-12).dp)
         ) {
-            Text("←", style = AppType.title, color = colors.textPrimary)
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = "Volver",
+                tint = colors.textPrimary
+            )
         }
 
         Spacer(modifier = Modifier.height(spacing.m))
@@ -218,6 +232,7 @@ private fun SongItem(
     isCurrent: Boolean,
     onClick: () -> Unit,
     onSwipeRight: () -> Unit,
+    onToggleFavorite: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
@@ -265,22 +280,12 @@ private fun SongItem(
                 .padding(horizontal = spacing.l, vertical = spacing.m),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            AuralisArtwork(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(ReproductorThemeTokens.shapes.small)
-                    .then(
-                        if (isCurrent) Modifier.background(ReproductorThemeTokens.primaryGradient)
-                        else Modifier.background(colors.surfaceRaised)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = if (isCurrent) "▶" else "${song.trackNumber ?: ""}",
-                    color = if (isCurrent) Color.White else colors.textSecondary,
-                    style = AppType.label.copy(fontWeight = FontWeight.Bold)
-                )
-            }
+                    .size(44.dp)
+                    .clip(ReproductorThemeTokens.shapes.small),
+                artworkReference = song.coverReference
+            )
 
             Spacer(modifier = Modifier.width(spacing.m))
 
@@ -304,174 +309,19 @@ private fun SongItem(
                     fontSize = 11.sp
                 )
             }
-        }
-    }
-}
 
-@Composable
-private fun PlaybackBar(
-    state: PlaybackState,
-    onPlayPauseClick: () -> Unit,
-    onPlayerClick: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onSkipNext: () -> Unit,
-    onSkipPrevious: () -> Unit,
-    colors: AppColors,
-    spacing: AppSpacing,
-    modifier: Modifier = Modifier
-) {
-    var sliderValue by remember(state.positionMs) { mutableFloatStateOf(state.positionMs.toFloat()) }
-    var isDragging by remember { mutableStateOf(false) }
-    val swipeOffsetX = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
-
-    Surface(
-        onClick = onPlayerClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = ReproductorThemeTokens.shapes.medium,
-        color = colors.surfaceRaised,
-        tonalElevation = 8.dp
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { },
-                            onHorizontalDrag = { _, dragAmount ->
-                                scope.launch {
-                                    swipeOffsetX.snapTo(swipeOffsetX.value + dragAmount * 0.8f)
-                                }
-                            },
-                            onDragEnd = {
-                                scope.launch {
-                                    if (swipeOffsetX.value > 150f) {
-                                        onSkipPrevious()
-                                        launch {
-                                            swipeOffsetX.animateTo(800f, tween(150, easing = LinearOutSlowInEasing))
-                                            swipeOffsetX.snapTo(-800f)
-                                            swipeOffsetX.animateTo(0f, spring(stiffness = Spring.StiffnessHigh))
-                                        }
-                                    } else if (swipeOffsetX.value < -150f) {
-                                        onSkipNext()
-                                        launch {
-                                            swipeOffsetX.animateTo(-800f, tween(150, easing = LinearOutSlowInEasing))
-                                            swipeOffsetX.snapTo(800f)
-                                            swipeOffsetX.animateTo(0f, spring(stiffness = Spring.StiffnessHigh))
-                                        }
-                                    } else {
-                                        swipeOffsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
-                                    }
-                                }
-                            },
-                            onDragCancel = { scope.launch { swipeOffsetX.animateTo(0f) } }
-                        )
-                    }
-                    .graphicsLayer { translationX = swipeOffsetX.value }
-                    .padding(horizontal = spacing.m, vertical = spacing.s),
-                verticalAlignment = Alignment.CenterVertically
+            IconButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier.size(36.dp)
             ) {
-                AuralisArtwork(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(ReproductorThemeTokens.shapes.small),
-                    artworkReference = state.currentSong?.coverReference
+                Icon(
+                    imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                    contentDescription = if (song.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
+                    tint = if (song.isFavorite) Color(0xFFE53935) else colors.textSecondary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(20.dp)
                 )
-                
-                Spacer(modifier = Modifier.width(spacing.m))
-                
-                AnimatedContent(
-                    targetState = state.currentSong,
-                    transitionSpec = {
-                        fadeIn(tween(400)) togetherWith fadeOut(tween(400))
-                    },
-                    modifier = Modifier.weight(1f),
-                    label = "SongMetadataTransition"
-                ) { song ->
-                    Column {
-                        Text(
-                            text = song?.title ?: "",
-                            style = AppType.body.copy(fontWeight = FontWeight.Bold),
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = song?.artist?.uppercase() ?: "UNKNOWN",
-                            style = AppType.label.copy(fontSize = 10.sp),
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                
-                IconButton(onClick = onPlayPauseClick) {
-                    Text(
-                        text = if (state.isPlaying) "‖" else "▶",
-                        style = AppType.title,
-                        color = colors.textPrimary
-                    )
-                }
-            }
-            
-            if (state.durationMs != null && state.durationMs > 0) {
-                Slider(
-                    value = if (isDragging) sliderValue else state.positionMs.toFloat(),
-                    onValueChange = {
-                        isDragging = true
-                        sliderValue = it
-                    },
-                    onValueChangeFinished = {
-                        isDragging = false
-                        onSeek(sliderValue.toLong())
-                    },
-                    valueRange = 0f..state.durationMs.toFloat(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(16.dp)
-                        .padding(horizontal = spacing.m),
-                    colors = SliderDefaults.colors(
-                        thumbColor = colors.textPrimary,
-                        activeTrackColor = colors.accent,
-                        inactiveTrackColor = colors.outline
-                    )
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = spacing.m, end = spacing.m, bottom = spacing.xs),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = formatDuration(if (isDragging) sliderValue.toLong() else state.positionMs),
-                        style = AppType.timer,
-                        color = colors.textSecondary,
-                        fontSize = 10.sp
-                    )
-                    Text(
-                        text = formatDuration(state.durationMs),
-                        style = AppType.timer,
-                        color = colors.textSecondary,
-                        fontSize = 10.sp
-                    )
-                }
             }
         }
     }
 }
 
-@Composable
-private fun LoadingState(colors: AppColors) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = colors.accent, strokeWidth = 2.dp)
-    }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    val totalSeconds = durationMs / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return "%d:%02d".format(minutes, seconds)
-}

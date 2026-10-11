@@ -56,6 +56,8 @@ class MediaStoreSource @Inject constructor(
         // ALBUM_ARTIST solo existe como columna desde API 30.
         val includeAlbumArtist = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
 
+        // DATA se omite a proposito: en Android 11+ y targetSdk >= 30 la columna
+        // esta bloqueada y el proveedor rechaza la consulta completa si se pide.
         val projection = buildList {
             add(MediaStore.Audio.Media._ID)
             add(MediaStore.Audio.Media.ALBUM_ID)
@@ -71,15 +73,16 @@ class MediaStoreSource @Inject constructor(
             add(MediaStore.Audio.Media.DATE_MODIFIED)
             add(MediaStore.Audio.Media.MIME_TYPE)
             add(MediaStore.Audio.Media.SIZE)
-            add(MediaStore.Audio.Media.DATA)
         }.toTypedArray()
 
         val result = mutableListOf<MediaStoreAudio>()
 
+        // Sin filtro IS_MUSIC: la musica descargada (p. ej. carpeta Download) se
+        // indexa con IS_MUSIC = 0 y quedaria excluida si se filtrara por ella.
         context.contentResolver.query(
             collection,
             projection,
-            "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+            null,
             null,
             "${MediaStore.Audio.Media.DATE_ADDED} DESC",
         )?.use { cursor ->
@@ -101,30 +104,27 @@ class MediaStoreSource @Inject constructor(
             val modifiedIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
             val mimeIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
             val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-            val pathIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idIdx)
-                val albumId = cursor.getLong(albumIdIdx)
-                val trackRaw = cursor.getInt(trackIdx)
                 result += MediaStoreAudio(
                     mediaStoreId = id,
-                    albumId = albumId,
+                    albumId = cursor.getLong(albumIdIdx),
                     uri = Uri.withAppendedPath(collection, id.toString()).toString(),
-                    displayName = cursor.getString(displayIdx),
-                    title = cursor.getString(titleIdx),
-                    artist = cursor.getString(artistIdx),
-                    album = cursor.getString(albumIdx),
-                    albumArtist = if (albumArtistIdx >= 0) cursor.getString(albumArtistIdx) else null,
+                    displayName = cursor.safeGetString(displayIdx).orEmpty(),
+                    title = cursor.safeGetString(titleIdx),
+                    artist = cursor.safeGetString(artistIdx),
+                    album = cursor.safeGetString(albumIdx),
+                    albumArtist = if (albumArtistIdx >= 0) cursor.safeGetString(albumArtistIdx) else null,
                     year = cursor.getIntOrNull(yearIdx),
-                    trackNumber = decodeTrackNumber(trackRaw),
-                    discNumber = decodeDiscNumber(trackRaw),
+                    trackNumber = decodeTrackNumber(cursor.getInt(trackIdx)),
+                    discNumber = decodeDiscNumber(cursor.getInt(trackIdx)),
                     durationMs = cursor.getLong(durationIdx).takeIf { it > 0 },
                     dateAddedEpochMs = cursor.getLong(addedIdx).takeIf { it > 0 }?.times(1000L),
                     dateModifiedEpochMs = cursor.getLong(modifiedIdx).takeIf { it > 0 }?.times(1000L),
-                    mimeType = cursor.getString(mimeIdx),
+                    mimeType = cursor.safeGetString(mimeIdx),
                     sizeBytes = cursor.getLong(sizeIdx).takeIf { it > 0 },
-                    path = cursor.getString(pathIdx),
+                    path = null,
                 )
             }
         }
@@ -147,4 +147,10 @@ class MediaStoreSource @Inject constructor(
 private fun android.database.Cursor.getIntOrNull(index: Int): Int? {
     if (index < 0 || isNull(index)) return null
     return getInt(index).takeIf { it != 0 }
+}
+
+/** Lectura segura de una columna que puede estar oculta o bloqueada por el proveedor. */
+private fun android.database.Cursor.safeGetString(index: Int): String? {
+    if (index < 0 || isNull(index)) return null
+    return runCatching { getString(index) }.getOrNull()
 }

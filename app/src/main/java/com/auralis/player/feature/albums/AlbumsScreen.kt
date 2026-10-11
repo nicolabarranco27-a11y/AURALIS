@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -89,10 +92,10 @@ private fun AlbumsHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onMenuClick) {
-            Text(
-                text = "☰",
-                style = AppType.title.copy(fontSize = 24.sp),
-                color = colors.textSecondary
+            Icon(
+                imageVector = Icons.Rounded.Menu,
+                contentDescription = "Abrir menú",
+                tint = colors.textSecondary
             )
         }
         
@@ -174,13 +177,6 @@ private fun AlbumItem(
             style = AppType.label.copy(fontSize = 9.sp),
             color = colors.textSecondary.copy(alpha = 0.6f)
         )
-    }
-}
-
-@Composable
-private fun LoadingState(colors: AppColors) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = colors.accent, strokeWidth = 2.dp)
     }
 }
 

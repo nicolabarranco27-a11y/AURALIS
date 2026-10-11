@@ -6,9 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.auralis.player.R
 import com.auralis.player.core.ui.theme.AppColors
@@ -37,6 +40,9 @@ import com.auralis.player.feature.artists.ArtistDetailScreen
 import com.auralis.player.feature.playlists.PlaylistsScreen
 import com.auralis.player.feature.playlists.PlaylistDetailScreen
 import com.auralis.player.feature.playlists.AddToPlaylistScreen
+import com.auralis.player.feature.favorites.FavoritesScreen
+import com.auralis.player.feature.queue.QueueScreen
+import com.auralis.player.feature.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -45,6 +51,8 @@ object Routes {
     const val ALBUMS = "albums"
     const val ARTISTS = "artists"
     const val PLAYLISTS = "playlists"
+    const val FAVORITES = "favorites"
+    const val QUEUE = "queue"
     const val SETTINGS = "settings"
     const val PLAYER = "player"
     const val ALBUM_DETAIL = "album_detail/{albumId}"
@@ -66,6 +74,9 @@ fun ReproductorNavHost() {
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
 
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -75,6 +86,7 @@ fun ReproductorNavHost() {
                 modifier = Modifier.width(300.dp)
             ) {
                 AuralisDrawerContent(
+                    currentRoute = currentRoute,
                     onNavigate = { route ->
                         scope.launch { drawerState.close() }
                         if (route != Routes.HOME) {
@@ -143,12 +155,29 @@ fun ReproductorNavHost() {
                     onPlayerClick = { navController.navigate(Routes.PLAYER) }
                 )
             }
+            composable(Routes.FAVORITES) {
+                FavoritesScreen(
+                    onMenuClick = { scope.launch { drawerState.open() } },
+                    onPlayerClick = { navController.navigate(Routes.PLAYER) }
+                )
+            }
+            composable(Routes.QUEUE) {
+                QueueScreen(onBackClick = { navController.popBackStack() })
+            }
             composable(Routes.ADD_TO_PLAYLIST) {
                 AddToPlaylistScreen(onBackClick = { navController.popBackStack() })
             }
-            composable(Routes.SETTINGS) { PlaceholderScreen("Ajustes", onBack = { navController.popBackStack() }) }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(onBackClick = { navController.popBackStack() })
+            }
             composable(Routes.PLAYER) {
-                PlayerScreen(onBackClick = { navController.popBackStack() })
+                PlayerScreen(
+                    onBackClick = {
+                        if (navController.previousBackStackEntry != null) {
+                            navController.popBackStack()
+                        }
+                    }
+                )
             }
         }
     }
@@ -156,6 +185,7 @@ fun ReproductorNavHost() {
 
 @Composable
 private fun AuralisDrawerContent(
+    currentRoute: String?,
     onNavigate: (String) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
@@ -179,17 +209,19 @@ private fun AuralisDrawerContent(
         Spacer(modifier = Modifier.height(spacing.m))
 
         // Navigation Items
-        DrawerItem("Inicio", "⌂", onClick = { onNavigate(Routes.HOME) }, colors, spacing)
-        DrawerItem("Canciones", "♪", onClick = { onNavigate(Routes.SONGS) }, colors, spacing)
-        DrawerItem("Álbumes", "▢", onClick = { onNavigate(Routes.ALBUMS) }, colors, spacing)
-        DrawerItem("Artistas", "👤", onClick = { onNavigate(Routes.ARTISTS) }, colors, spacing)
-        DrawerItem("Playlists", "☰", onClick = { onNavigate(Routes.PLAYLISTS) }, colors, spacing)
+        DrawerItem("Inicio", "⌂", isSelected = currentRoute == Routes.HOME, onClick = { onNavigate(Routes.HOME) }, colors, spacing)
+        DrawerItem("Canciones", "♪", isSelected = currentRoute == Routes.SONGS, onClick = { onNavigate(Routes.SONGS) }, colors, spacing)
+        DrawerItem("Álbumes", "▢", isSelected = currentRoute == Routes.ALBUMS, onClick = { onNavigate(Routes.ALBUMS) }, colors, spacing)
+        DrawerItem("Artistas", "👤", isSelected = currentRoute == Routes.ARTISTS, onClick = { onNavigate(Routes.ARTISTS) }, colors, spacing)
+        DrawerItem("Playlists", "☰", isSelected = currentRoute == Routes.PLAYLISTS, onClick = { onNavigate(Routes.PLAYLISTS) }, colors, spacing)
+        DrawerItem("Favoritos", "♥", isSelected = currentRoute == Routes.FAVORITES, onClick = { onNavigate(Routes.FAVORITES) }, colors, spacing)
+        DrawerItem("Cola", "≡", isSelected = currentRoute == Routes.QUEUE, onClick = { onNavigate(Routes.QUEUE) }, colors, spacing)
         
         Spacer(modifier = Modifier.height(spacing.l))
         HorizontalDivider(color = colors.outline.copy(alpha = 0.3f))
         Spacer(modifier = Modifier.height(spacing.l))
 
-        DrawerItem("Ajustes", "⚙", onClick = { onNavigate(Routes.SETTINGS) }, colors, spacing)
+        DrawerItem("Ajustes", "⚙", isSelected = currentRoute == Routes.SETTINGS, onClick = { onNavigate(Routes.SETTINGS) }, colors, spacing)
 
         Spacer(modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.height(spacing.xl))
@@ -203,28 +235,40 @@ private fun AuralisDrawerContent(
 private fun DrawerItem(
     label: String,
     icon: String,
+    isSelected: Boolean,
     onClick: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    val pillShape = RoundedCornerShape(percent = 50)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(ReproductorThemeTokens.shapes.medium)
+            .clip(pillShape)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.secondaryContainer 
+                else androidx.compose.ui.graphics.Color.Transparent
+            )
             .clickable(onClick = onClick)
-            .padding(vertical = spacing.m, horizontal = spacing.s),
+            .padding(vertical = spacing.s, horizontal = spacing.m),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = icon,
-            style = AppType.title.copy(fontSize = 20.sp),
-            color = colors.textSecondary,
+            style = AppType.title.copy(
+                fontSize = 20.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            ),
+            color = if (isSelected) colors.accent else colors.textSecondary,
             modifier = Modifier.width(32.dp)
         )
         Text(
             text = label,
-            style = AppType.body.copy(fontWeight = FontWeight.Medium),
-            color = colors.textPrimary
+            style = AppType.body.copy(
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+            ),
+            color = if (isSelected) colors.accent else colors.textPrimary
         )
     }
 }
@@ -240,19 +284,19 @@ private fun CorporateSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = spacing.m)
+            .padding(bottom = spacing.s)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(id = R.drawable.estalingradocorp_logo),
                 contentDescription = "Logo EstalingradoCorp",
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(androidx.compose.ui.graphics.Color.Black),
                 contentScale = ContentScale.Fit
             )
-            Spacer(modifier = Modifier.width(spacing.m))
+            Spacer(modifier = Modifier.width(spacing.s))
             Text(
                 text = "EstalingradoCorp",
                 style = AppType.label.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
@@ -260,62 +304,22 @@ private fun CorporateSection(
             )
         }
         
-        Spacer(modifier = Modifier.height(spacing.s))
+        Spacer(modifier = Modifier.height(spacing.xs))
         
         Text(
-            text = "Visita nuestro sitio oficial",
-            style = AppType.label.copy(fontSize = 11.sp),
-            color = colors.accent,
+            text = "Visita EstalingradoCorp",
+            style = AppType.label.copy(fontSize = 11.sp, fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable { uriHandler.openUri(corporateUrl) }
         )
         
-        Spacer(modifier = Modifier.height(spacing.m))
+        Spacer(modifier = Modifier.height(spacing.s))
         
         Text(
             text = "© EstalingradoCorp. Todos los derechos reservados.",
-            style = AppType.label.copy(fontSize = 10.sp),
-            color = colors.textSecondary.copy(alpha = 0.7f)
+            style = AppType.label.copy(fontSize = 9.sp),
+            color = colors.textSecondary.copy(alpha = 0.6f)
         )
     }
 }
 
-@Composable
-private fun PlaceholderScreen(
-    title: String,
-    onBack: () -> Unit
-) {
-    val colors = ReproductorThemeTokens.colors
-    val spacing = ReproductorThemeTokens.spacing
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.background)
-            .statusBarsPadding()
-            .padding(spacing.l)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Text("←", color = colors.textPrimary, style = AppType.title)
-            }
-            Spacer(modifier = Modifier.width(spacing.m))
-            Text(
-                text = title.uppercase(),
-                style = AppType.title,
-                color = colors.textPrimary,
-                letterSpacing = 2.sp
-            )
-        }
-        
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Próximamente",
-                style = AppType.body,
-                color = colors.textSecondary
-            )
-        }
-    }
-}

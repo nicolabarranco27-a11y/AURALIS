@@ -36,4 +36,13 @@ interface PlaybackRepository {
 
     /** Añade una cancion al final de la cola actual sin interrumpir. */
     fun addSongToQueue(song: Song)
+
+    /** Emite la cola actual en orden de reproduccion. */
+    fun observeQueue(): Flow<List<Song>>
+
+    /** Mueve una cancion dentro de la cola. */
+    fun moveQueueItem(fromIndex: Int, toIndex: Int)
+
+    /** Elimina la cancion en [index] de la cola. */
+    fun removeQueueItem(index: Int)
 }

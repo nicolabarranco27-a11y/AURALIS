@@ -9,6 +9,7 @@ import com.auralis.player.domain.model.PlaylistId
 import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
+import com.auralis.player.domain.repository.FavoritesRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import com.auralis.player.domain.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,6 +34,7 @@ class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playlistRepository: PlaylistRepository,
     private val playbackRepository: PlaybackRepository,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val playlistIdString: String = checkNotNull(savedStateHandle["playlistId"])
@@ -111,5 +113,11 @@ class PlaylistDetailViewModel @Inject constructor(
 
     fun addToQueue(song: Song) {
         playbackRepository.addSongToQueue(song)
+    }
+
+    fun toggleFavorite(song: Song) {
+        viewModelScope.launch {
+            favoritesRepository.toggleFavorite(song.id)
+        }
     }
 }

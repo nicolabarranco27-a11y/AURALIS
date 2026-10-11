@@ -108,15 +108,22 @@ interface LibraryDao {
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun getById(id: String): SongEntity?
 
+    /**
+     * Busqueda insensible a mayusculas y acentos. `LOWER` de SQLite solo
+     * convierte ASCII, por lo que tambien se reemplazan las vocales
+     * acentuadas (mayusculas y minusculas) y la enie. La consulta llega ya
+     * normalizada desde la capa de aplicacion.
+     */
     @Query(
         """
         SELECT * FROM songs
         WHERE isAvailable = 1
-          AND (
-            REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(title), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
-            OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(artist), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
-            OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(album), 'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u') LIKE '%' || :query || '%'
-          )
+          AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+              REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                LOWER(title || ' ' || COALESCE(artist, '') || ' ' || COALESCE(album, '')),
+              'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u'), 'ñ', 'n'),
+              'Á', 'a'), 'É', 'e'), 'Í', 'i'), 'Ó', 'o'), 'Ú', 'u'), 'Ü', 'u'), 'Ñ', 'n')
+            LIKE '%' || :query || '%'
         ORDER BY title COLLATE NOCASE
         """,
     )
@@ -131,12 +138,11 @@ interface LibraryDao {
     @Query("DELETE FROM songs WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
 
-    /** Eliminacion logica: conserva playlists, favoritos e historico. */
-    @Query(
-        """
-        UPDATE songs SET isAvailable = 0
-        WHERE isAvailable = 1 AND id NOT IN (:availableIds)
-        """,
-    )
-    suspend fun markUnavailableExcept(availableIds: List<String>): Int
+    /**
+     * Eliminacion logica por lotes: conserva playlists, favoritos e historico.
+     * Se invoca con listas acotadas para no exceder el limite de variables
+     * de SQLite (SQLITE_MAX_VARIABLE_NUMBER) en bibliotecas grandes.
+     */
+    @Query("UPDATE songs SET isAvailable = 0 WHERE isAvailable = 1 AND id IN (:ids)")
+    suspend fun markUnavailable(ids: List<String>): Int
 }

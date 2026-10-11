@@ -114,10 +114,16 @@ class DefaultLibraryScanner @Inject constructor(
 
         libraryDao.upsertAll(upsertBuffer.toList())
 
-        val removed = if (existingById.isEmpty() && discovered.isNotEmpty()) {
-            0
-        } else {
-            libraryDao.markUnavailableExcept(seenSongIds.toList())
+        // Eliminacion logica por lotes: marcar solo las canciones que ya no
+        // aparecen en MediaStore, acotando el numero de variables por consulta
+        // para evitar "too many SQL variables" en bibliotecas grandes.
+        val toRemove = existingById.values
+            .filter { it.isAvailable && it.id !in seenSongIds }
+            .map { it.id }
+        var removed = 0
+        toRemove.chunked(BATCH_SIZE).forEach { chunk ->
+            currentCoroutineContext().ensureActive()
+            removed += libraryDao.markUnavailable(chunk)
         }
 
         return ScanOutcome.Success(

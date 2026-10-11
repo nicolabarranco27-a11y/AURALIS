@@ -3,6 +3,7 @@ package com.auralis.player.data.repository
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.RepeatMode
+import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.repository.PlaybackRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,8 @@ class InMemoryPlaybackRepository @Inject constructor() : PlaybackRepository {
     private var queue: List<QueueItem> = emptyList()
     private var currentIndex: Int = NO_INDEX
     private var lastQueuedIndex: Int = NO_INDEX
+
+    private val _queueFlow = MutableStateFlow<List<Song>>(emptyList())
 
     override suspend fun getCurrentState(): PlaybackState = _state.value
 
@@ -72,33 +75,76 @@ class InMemoryPlaybackRepository @Inject constructor() : PlaybackRepository {
             startIndex.coerceIn(0, items.lastIndex)
         }
         lastQueuedIndex = currentIndex
+        publishQueue()
         update { it.copyFromQueue() }
     }
 
-    override fun addSongToQueue(song: com.auralis.player.domain.model.Song) {
-        val targetIndex = if (lastQueuedIndex < currentIndex) {
-            currentIndex + 1
-        } else {
-            lastQueuedIndex + 1
-        }
+    override fun addSongToQueue(song: Song) {
+        val targetIndex = QueueInsertIndexCalculator.calculate(
+            currentIndex = currentIndex,
+            lastQueuedIndex = lastQueuedIndex,
+            itemCount = queue.size,
+        )
 
         val mutableQueue = queue.toMutableList()
         val newItem = QueueItem(java.util.UUID.randomUUID().toString(), song)
-        
-        if (targetIndex > mutableQueue.size) {
-            mutableQueue.add(newItem)
-        } else {
-            mutableQueue.add(targetIndex, newItem)
-        }
-        
+        mutableQueue.add(targetIndex, newItem)
         queue = mutableQueue
-        
+
         if (currentIndex == NO_INDEX) {
             currentIndex = 0
             update { it.copyFromQueue() }
         }
-        
+
         lastQueuedIndex = targetIndex
+        publishQueue()
+    }
+
+    override fun observeQueue(): Flow<List<Song>> = _queueFlow.asStateFlow()
+
+    override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        if (fromIndex !in queue.indices) return
+        val target = toIndex.coerceIn(0, queue.lastIndex)
+        if (fromIndex == target) return
+
+        val mutableQueue = queue.toMutableList()
+        val moved = mutableQueue.removeAt(fromIndex)
+        mutableQueue.add(target, moved)
+        queue = mutableQueue
+
+        currentIndex = if (currentIndex == fromIndex) {
+            target
+        } else {
+            var adjusted = currentIndex
+            if (adjusted > fromIndex) adjusted--
+            if (adjusted >= target) adjusted++
+            adjusted.coerceIn(0, queue.lastIndex)
+        }
+        lastQueuedIndex = NO_INDEX
+        publishQueue()
+        update { it.copyFromQueue() }
+    }
+
+    override fun removeQueueItem(index: Int) {
+        if (index !in queue.indices) return
+
+        val mutableQueue = queue.toMutableList()
+        mutableQueue.removeAt(index)
+        queue = mutableQueue
+
+        currentIndex = when {
+            index < currentIndex -> currentIndex - 1
+            index == currentIndex -> currentIndex.coerceAtMost(queue.lastIndex)
+            else -> currentIndex
+        }
+        if (queue.isEmpty()) currentIndex = NO_INDEX
+        lastQueuedIndex = NO_INDEX
+        publishQueue()
+        update { it.copyFromQueue() }
+    }
+
+    private fun publishQueue() {
+        _queueFlow.value = queue.map { it.song }
     }
 
     private fun moveTo(index: Int) {

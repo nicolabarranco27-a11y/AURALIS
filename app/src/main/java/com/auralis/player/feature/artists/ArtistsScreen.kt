@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -85,10 +88,10 @@ private fun ArtistsHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onMenuClick) {
-            Text(
-                text = "☰",
-                style = AppType.title.copy(fontSize = 24.sp),
-                color = colors.textSecondary
+            Icon(
+                imageVector = Icons.Rounded.Menu,
+                contentDescription = "Abrir menú",
+                tint = colors.textSecondary
             )
         }
         
@@ -178,13 +181,6 @@ private fun ArtistItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
-
-@Composable
-private fun LoadingState(colors: AppColors) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = colors.accent, strokeWidth = 2.dp)
     }
 }
 

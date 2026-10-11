@@ -100,6 +100,24 @@ class LibraryDaoTest {
     }
 
     @Test
+    fun `buscar es insensible a acentos y mayusculas acentuadas`() = runTest {
+        val dao = db.libraryDao()
+
+        dao.upsertAll(
+            listOf(
+                song("s1", "Índigo", artist = "Camila"),
+                song("s2", "Canción de Cuna"),
+                song("s3", "Peña"),
+            ),
+        )
+
+        assertEquals(listOf("s1"), dao.search("indigo").map { it.id })
+        assertEquals(listOf("s2"), dao.search("cancion").map { it.id })
+        assertEquals(listOf("s3"), dao.search("pena").map { it.id })
+        assertEquals(listOf("s1"), dao.search("camila").map { it.id })
+    }
+
+    @Test
     fun `eliminar por ids`() = runTest {
         val dao = db.libraryDao()
 
@@ -112,12 +130,12 @@ class LibraryDaoTest {
     }
 
     @Test
-    fun `markUnavailableExcept oculta las canciones ausentes sin borrarlas`() = runTest {
+    fun `markUnavailable oculta las canciones indicadas sin borrarlas`() = runTest {
         val dao = db.libraryDao()
 
         dao.upsertAll(listOf(song("s1", "A"), song("s2", "B"), song("s3", "C")))
 
-        val removed = dao.markUnavailableExcept(listOf("s2"))
+        val removed = dao.markUnavailable(listOf("s1", "s3"))
 
         assertEquals(2, removed)
         assertFalse(dao.getById("s1")!!.isAvailable)
@@ -128,11 +146,36 @@ class LibraryDaoTest {
     }
 
     @Test
+    fun `markUnavailable no cuenta canciones ya no disponibles`() = runTest {
+        val dao = db.libraryDao()
+
+        dao.upsertAll(listOf(song("s1", "A"), song("s2", "B")))
+        dao.markUnavailable(listOf("s1"))
+
+        val removedAgain = dao.markUnavailable(listOf("s1"))
+
+        assertEquals(0, removedAgain)
+    }
+
+    @Test
+    fun `markUnavailable soporta listas grandes sin exceder variables sqlite`() = runTest {
+        val dao = db.libraryDao()
+        val ids = (1..1_200).map { "song$it" }
+        dao.upsertAll(ids.mapIndexed { index, id -> song(id, "T$index") })
+
+        val removed = ids.chunked(500).sumOf { dao.markUnavailable(it) }
+
+        assertEquals(1_200, removed)
+        assertTrue(dao.getSongs().isEmpty())
+        assertEquals(1_200, dao.getAllIncludingUnavailable().size)
+    }
+
+    @Test
     fun `upsertAll restaura disponibilidad`() = runTest {
         val dao = db.libraryDao()
 
         dao.upsert(song("s1", "A"))
-        dao.markUnavailableExcept(emptyList())
+        dao.markUnavailable(listOf("s1"))
         assertTrue(dao.getSongs().isEmpty())
 
         dao.upsertAll(listOf(song("s1", "A").copy(isAvailable = true)))

@@ -70,17 +70,37 @@ class Media3PlaybackRepository @Inject constructor(
     override fun addSongToQueue(song: Song) {
         val controller = serviceConnection.mediaController ?: return
         val currentIndex = controller.currentMediaItemIndex
-        
+
         // Si el índice guardado es inválido o menor al actual, empezamos a insertar después del actual.
         // Si es válido, insertamos después del último insertado para mantener el orden A -> B -> C.
-        val targetIndex = if (lastQueuedIndex < currentIndex) {
-            currentIndex + 1
-        } else {
-            lastQueuedIndex + 1
-        }
+        // Se acota al tamaño real de la cola para evitar IndexOutOfBoundsException cuando la
+        // cola queda vacía o el servicio se recrea.
+        val targetIndex = QueueInsertIndexCalculator.calculate(
+            currentIndex = currentIndex,
+            lastQueuedIndex = lastQueuedIndex,
+            itemCount = controller.mediaItemCount,
+        )
 
         controller.addMediaItem(targetIndex, song.toMediaItem())
         lastQueuedIndex = targetIndex
+    }
+
+    override fun observeQueue(): Flow<List<Song>> = serviceConnection.queue
+
+    override fun moveQueueItem(fromIndex: Int, toIndex: Int) {
+        val controller = serviceConnection.mediaController ?: return
+        if (fromIndex !in 0 until controller.mediaItemCount) return
+        val target = toIndex.coerceIn(0, controller.mediaItemCount - 1)
+        if (fromIndex == target) return
+        controller.moveMediaItem(fromIndex, target)
+        lastQueuedIndex = -1
+    }
+
+    override fun removeQueueItem(index: Int) {
+        val controller = serviceConnection.mediaController ?: return
+        if (index !in 0 until controller.mediaItemCount) return
+        controller.removeMediaItem(index)
+        lastQueuedIndex = -1
     }
 
     private fun Song.toMediaItem(): MediaItem {
@@ -91,6 +111,8 @@ class Media3PlaybackRepository @Inject constructor(
             .setArtworkUri(coverReference?.let { Uri.parse(it) })
             .setExtras(Bundle().apply {
                 durationMs?.let { putLong("duration_ms", it) }
+                trackNumber?.let { putInt("track_number", it) }
+                putBoolean("is_favorite", isFavorite)
             })
             .build()
 
