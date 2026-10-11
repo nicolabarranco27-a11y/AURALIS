@@ -61,6 +61,9 @@ signing.properties
 *.temp
 .temp/
 
+# Tooling artifacts (opencode)
+.artifacts/
+
 # KSP
 *.ksp/
 

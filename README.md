@@ -2,38 +2,40 @@
 
 Auralis es un reproductor de música moderno, elegante y sin anuncios para Android. Diseñado con una arquitectura limpia, sigue las mejores prácticas de desarrollo Android y ofrece una experiencia de usuario fluida con Material Design 3.
 
+> **Versión actual**: v0.1.0 (`59403f7`). Cambios adicionales viven en el working tree y serán consolidados como v0.2.0. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
+
 ## 📱 Capturas de Pantalla
 
 *Próximamente*
 
-## ✨ Características Principales
+## ✨ Características Principales (v0.1.0)
 
 ### Reproducción de Audio
 - **Motor ExoPlayer (Media3)** - Reproducción robusta y eficiente
 - **Servicio en segundo plano** - Reproducción continua con `MediaSessionService`
 - **Controles de notificación** - Control desde la barra de notificaciones y pantalla de bloqueo
 - **Modos de repetición** - Apagado, Repetir uno, Repetir todo
-- **Aleatorio (Shuffle)** - Reproducción aleatoria inteligente
-- **Control de velocidad** - Seek preciso con slider interactivo
+- **Aleatorio (Shuffle)** - Reproducción aleatoria
+- **Control de velocidad** - Seek preciso con slider interactivo en `PlayerScreen`
 
 ### Organización de Biblioteca
 - **Escaneo automático** - Detección de archivos de audio via MediaStore
 - **WorkManager** - Escaneo en segundo plano programado
 - **Metadatos completos** - Título, artista, álbum, duración, género, carátula
 - **Vistas jerárquicas**:
-  - 🎵 **Canciones** - Lista completa con búsqueda y ordenación
+  - 🎵 **Canciones** - Lista completa
   - 💿 **Álbumes** - Agrupados por álbum con detalle
   - 🎤 **Artistas** - Por artista con sus álbumes
   - 📋 **Playlists** - **CRUD completo**: crear, renombrar, eliminar, añadir/quitar canciones, reproducción integrada
-  - ❤️ **Favoritos** - Marcado rápido de canciones preferidas
+  - ❤️ **Favoritos** - Persistidos en Room (sin UI dedicada en v0.1.0)
 
-### Interfaz de Usuario
+### Interfaz de Usuario (v0.1.0)
 - **Material Design 3** - Diseño moderno y consistente
 - **Jetpack Compose** - UI declarativa y reactiva
 - **Tema personalizado** - Colores, tipografía, formas y motion tokens
 - **Navegación por cajón (Drawer)** - Acceso rápido a todas las secciones
-- **Barra de reproducción persistente** - Mini-player siempre visible
-- **Pantalla de reproducción completa** - Carátula grande, controles ampliados
+- **Barra de reproducción persistente** - Mini-player con `Slider`
+- **Pantalla de reproducción completa** - Carátula, controles, seek
 - **Animaciones fluidas** - Transiciones suaves entre estados
 
 ### Arquitectura y Calidad
@@ -43,6 +45,18 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - **Kotlin Coroutines + Flow** - Programación asíncrona reactiva
 - **KSP** - Procesamiento de símbolos Kotlin para Room/Hilt
 - **ProGuard/R8** - Optimización y ofuscación en release
+
+### Pendientes de consolidación (working tree → v0.2.0)
+- Ecualizador de 5 bandas con AudioFX real y persistencia
+- Búsqueda inteligente con Autocomplete
+- Toggle de Favoritos en filas
+- Drawer con sección activa resaltada
+- Pantalla de Ajustes real
+- Carrusel "Acceso Rápido" y filtros por chips en Home
+- Detalles de Pista
+- Refinamiento visual (Material Icons, vinilo, glow)
+
+Consultá `docs/FEATURES.md` y `docs/RELEASE_PLAN.md` para el detalle completo.
 
 ## 🛠 Stack Tecnológico
 
@@ -58,9 +72,12 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 | **Async** | Coroutines + Flow | 1.11.0 |
 | **Testing** | JUnit, Robolectric, Coroutines Test | - |
 | **Build** | Gradle KTS (Kotlin DSL) | AGP 9.3.2 |
+| **JDK** | 21 | |
 | **Min SDK** | Android 8.0 (API 26) | |
 | **Target SDK** | Android 14 (API 36) | |
 | **Compile SDK** | Android 15 (API 37) | |
+| **VersionName** | 0.1.0 | |
+| **VersionCode** | 1 | |
 
 ## 🏗 Estructura del Proyecto
 
@@ -69,6 +86,7 @@ app/src/main/java/com/auralis/player/
 ├── core/                          # Núcleo compartido
 │   ├── common/                    # Utilidades genéricas (Result, Dispatchers)
 │   └── ui/theme/                  # Sistema de diseño (Tokens, Color, Type, Shape, Spacing, Motion)
+│   └── ui/components/             # Componentes core (AuralisArtwork, QueueFeedbackOverlay)
 ├── data/                          # Capa de datos
 │   ├── database/                  # Room: Entities, DAOs, Database, Mappers
 │   ├── mediastore/                # MediaStoreSource - Acceso a archivos del sistema
@@ -87,6 +105,7 @@ app/src/main/java/com/auralis/player/
 │   ├── albums/                    # AlbumsScreen, AlbumDetailScreen, ViewModels
 │   ├── artists/                   # ArtistsScreen, ArtistDetailScreen, ViewModels
 │   ├── playlists/                 # PlaylistsScreen, PlaylistDetailScreen, AddToPlaylistScreen + ViewModels
+│   ├── settings/                  # SettingsScreen (working tree)
 │   └── navigation/                # ReproductorNavHost, Rutas, Drawer
 └── App.kt / MainActivity.kt       # Entry points
 ```
@@ -95,13 +114,12 @@ app/src/main/java/com/auralis/player/
 
 ### Requisitos Previos
 - **Android Studio** Ladybug (2024.2.1) o superior
-- **JDK 17** (configurado en `gradle.properties`)
+- **JDK 21** (configurado en `gradle.properties`)
 - **Android SDK** con API 37 (compileSdk) y API 26+ (minSdk)
 
 ### Clonar y Construir
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/tu-usuario/auralis.git
 cd auralis
 
@@ -120,7 +138,6 @@ chmod +x gradlew
 Crea un archivo `local.properties` en la raíz (ya está en `.gitignore`):
 
 ```properties
-# Para builds de release firmados
 storeFile=../keystore/release.keystore
 storePassword=tu_password
 keyAlias=tu_alias
@@ -135,23 +152,15 @@ keyPassword=tu_key_password
 | `release` | Producción, ProGuard/R8 activado, shrinkResources |
 
 ```bash
-# Build release firmado (requiere local.properties configurado)
 ./gradlew assembleRelease
-
-# Generar AAB para Google Play
 ./gradlew bundleRelease
 ```
 
 ## 🧪 Testing
 
 ```bash
-# Tests unitarios locales
 ./gradlew testDebugUnitTest
-
-# Tests instrumentados (requiere dispositivo/emulador)
 ./gradlew connectedDebugAndroidTest
-
-# Reporte de cobertura (si configurado)
 ./gradlew jacocoTestReport
 ```
 
@@ -163,6 +172,7 @@ keyPassword=tu_key_password
 | `READ_EXTERNAL_STORAGE` | Leer almacenamiento (Android 12 y anteriores) | ≤32 |
 | `POST_NOTIFICATIONS` | Mostrar controles en notificación | 33+ |
 | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Servicio de reproducción en foreground | 29+ |
+| `MODIFY_AUDIO_SETTINGS` | Aplicar efectos de AudioFX (Ecualizador) | todo |
 
 > **Nota**: La app maneja automáticamente la solicitud de permisos en tiempo de ejecución con UI guiada.
 
@@ -177,43 +187,7 @@ El sistema de diseño vive en `core/ui/theme/`:
 - `Motion.kt` - Duraciones y easings estándar
 - `ReproductorThemeTokens.kt` - Agregador principal
 
-## 🆕 Novedades Recientes (v0.2.0)
-
-### 📋 Playlists - Implementación Completa
-- **Crear playlists** - Diálogo con validación de nombre
-- **Renombrar** - Editar nombre desde el detalle
-- **Eliminar** - Swipe/borrar desde la lista
-- **Gestionar canciones** - Pantalla dedicada para añadir/quitar canciones con checkboxes
-- **Reproducción integrada** - Player bar persistente en detalle de playlist
-- **Navegación fluida** - Playlists → Detalle → Añadir canciones → Volver
-
----
-
-## 📱 Publicación en Google Play
-
-### Checklist Pre-Release
-
-- [ ] Actualizar `versionCode` y `versionName` en `app/build.gradle.kts`
-- [ ] Verificar `minSdk`/`targetSdk` cumplen políticas de Play Console
-- [ ] Probar en múltiples tamaños de pantalla (teléfono, tablet, foldable)
-- [ ] Verificar permisos declarados en `AndroidManifest.xml`
-- [ ] Generar `bundleRelease` (AAB)
-- [ ] Firmar con clave de subida (Play App Signing)
-- [ ] Preparar assets de Store: icono (512x512), feature graphic (1024x500), capturas
-- [ ] Política de privacidad (requerida para apps que leen almacenamiento)
-- [ ] Data Safety Form completado en Play Console
-
-### Versionado Semántico
-
-```
-versionName = "MAJOR.MINOR.PATCH"
-versionCode = entero incremental (1, 2, 3...)
-
-Ejemplo: 1.0.0 -> versionCode 1
-         1.0.1 -> versionCode 2 (bugfix)
-         1.1.0 -> versionCode 3 (feature minor)
-         2.0.0 -> versionCode 4 (breaking change)
-```
+Ver `docs/DESIGN_SYSTEM.md` para el detalle.
 
 ## 🤝 Contribución
 
@@ -255,8 +229,8 @@ limitations under the License.
 
 ## 🙋 Soporte y Contacto
 
-- **Issues**: [GitHub Issues](https://github.com/tu-usuario/auralis/issues)
-- **Web**: [EstalingradoCorp](https://estalingradocorp.github.io/EstalingradoCorp/)
+- **Issues**: GitHub Issues del repositorio
+- **Web**: EstalingradoCorp
 - **Email**: soporte@estalingradocorp.com
 
 ---
