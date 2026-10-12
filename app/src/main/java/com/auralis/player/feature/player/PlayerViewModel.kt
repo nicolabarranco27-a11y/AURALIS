@@ -94,6 +94,11 @@ class PlayerViewModel @Inject constructor(
         _sleepTimer.value = SleepTimerState.Off
     }
 
+    /** Envia los niveles de banda del ecualizador al motor de audio. */
+    fun applyEqualizerBands(bands: List<Float>, preset: String) {
+        playbackRepository.applyEqualizerBands(bands, preset)
+    }
+
     override fun onCleared() {
         sleepTimerJob?.cancel()
         super.onCleared()

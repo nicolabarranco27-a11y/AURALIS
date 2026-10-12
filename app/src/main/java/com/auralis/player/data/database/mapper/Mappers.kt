@@ -19,6 +19,23 @@ import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
 import java.time.Instant
 
+/**
+ * Normaliza texto para busqueda: minusculas y sin acentos.
+ * Debe coincidir con la normalizacion aplicada a la consulta del usuario.
+ */
+fun normalizeForSearch(input: String): String = input.lowercase()
+    .replace('á', 'a')
+    .replace('é', 'e')
+    .replace('í', 'i')
+    .replace('ó', 'o')
+    .replace('ú', 'u')
+    .replace('ü', 'u')
+    .replace('ñ', 'n')
+
+/** Clave de busqueda premormalizada de title+artist+album. */
+fun buildSearchKey(title: String, artist: String?, album: String?): String =
+    normalizeForSearch("$title ${artist.orEmpty()} ${album.orEmpty()}")
+
 fun SongEntity.toDomain(): Song = Song(
     id = SongId(id),
     sourceUri = uri,
@@ -66,6 +83,7 @@ fun Song.toEntity(
     lastPlayedAtEpochMs = lastPlayedAt?.toEpochMilli(),
     isFavorite = isFavorite,
     coverUri = coverReference,
+    searchKey = buildSearchKey(title, artist, album),
     isAvailable = true,
 )
 

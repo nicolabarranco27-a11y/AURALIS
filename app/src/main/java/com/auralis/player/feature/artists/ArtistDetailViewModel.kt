@@ -36,7 +36,7 @@ class ArtistDetailViewModel @Inject constructor(
     private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
-    private val artistName: String = checkNotNull(savedStateHandle["artistName"])
+    private val artistName: String = savedStateHandle.get<String>("artistName").orEmpty()
 
     private val _uiState = MutableStateFlow(ArtistDetailUiState(artistName = artistName))
     val uiState: StateFlow<ArtistDetailUiState> = _uiState.asStateFlow()

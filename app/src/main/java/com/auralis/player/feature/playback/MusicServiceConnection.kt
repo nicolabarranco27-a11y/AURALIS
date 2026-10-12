@@ -2,10 +2,12 @@ package com.auralis.player.feature.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Bundle
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.RepeatMode
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -101,11 +104,39 @@ class MusicServiceConnection @Inject constructor(
         }
     }
 
+    /**
+     * Envia los niveles de banda del ecualizador al servicio, que es el unico
+     * propietario del efecto [android.media.audiofx.Equalizer] sobre la sesion
+     * de audio. Aplica los cambios en caliente y los persiste.
+     */
+    fun setEqualizerBands(bands: List<Float>, preset: String) {
+        val controller = mediaController ?: return
+        val args = Bundle().apply {
+            putFloatArray(PlaybackService.ARG_EQ_BANDS, bands.toFloatArray())
+            putString(PlaybackService.ARG_EQ_PRESET, preset)
+        }
+        try {
+            controller.sendCustomCommand(
+                SessionCommand(PlaybackService.CMD_SET_EQ_BANDS, Bundle.EMPTY),
+                args
+            )
+        } catch (_: Exception) {
+            // El comando puede no estar disponible si la sesion aun no conecto.
+        }
+    }
+
     private fun updateQueue() {
         val controller = mediaController ?: return
-        val songs = (0 until controller.mediaItemCount).mapNotNull { controller.getMediaItemAt(it).toSong() }
-        if (songs != _queue.value) {
-            _queue.value = songs
+        val mediaItems = (0 until controller.mediaItemCount).map { controller.getMediaItemAt(it) }
+        // El mapeo a dominio puede recorrer miles de elementos: se hace fuera del
+        // hilo principal y solo se publica el resultado de vuelta en Main.
+        scope.launch {
+            val songs = withContext(Dispatchers.Default) {
+                mediaItems.mapNotNull { it.toSong() }
+            }
+            if (songs != _queue.value) {
+                _queue.value = songs
+            }
         }
     }
 

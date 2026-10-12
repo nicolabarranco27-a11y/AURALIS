@@ -516,9 +516,9 @@ fun PlayerScreen(
             contentColor = colors.textPrimary
         ) {
             EqualizerContent(
-                audioSessionId = state.audioSessionId,
                 colors = colors,
                 spacing = spacing,
+                onApplyBands = { bands, preset -> viewModel.applyEqualizerBands(bands, preset) },
                 onClose = { showEqualizerSheet = false }
             )
         }
@@ -553,9 +553,9 @@ fun PlayerScreen(
 
 @Composable
 private fun EqualizerContent(
-    audioSessionId: Int,
     colors: com.auralis.player.core.ui.theme.AppColors,
     spacing: com.auralis.player.core.ui.theme.AppSpacing,
+    onApplyBands: (List<Float>, String) -> Unit,
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
@@ -575,58 +575,14 @@ private fun EqualizerContent(
         )
     }
 
-    var audioFxEqualizer by remember { mutableStateOf<android.media.audiofx.Equalizer?>(null) }
-
     DisposableEffect(Unit) {
         onDispose {
             EqualizerPreferences.saveEqualizerSettings(context, selectedPreset, bandDbValues)
         }
     }
 
-    fun applyBandGain(eq: android.media.audiofx.Equalizer?, bandIndex: Int, dbValue: Float) {
-        try {
-            eq?.let { equalizer ->
-                val numBands = equalizer.numberOfBands.toInt()
-                if (bandIndex in 0 until numBands) {
-                    val bandRange = equalizer.bandLevelRange
-                    val minMb = bandRange?.getOrNull(0)?.toInt() ?: -1500
-                    val maxMb = bandRange?.getOrNull(1)?.toInt() ?: 1500
-                    val fraction = ((dbValue + 15f) / 30f).coerceIn(0f, 1f)
-                    val millibels = (minMb + fraction * (maxMb - minMb)).toInt().toShort()
-                    equalizer.setBandLevel(bandIndex.toShort(), millibels)
-                }
-            }
-        } catch (_: Exception) { }
-    }
-
-    DisposableEffect(audioSessionId) {
-        if (audioSessionId > 0) {
-            try {
-                val eq = android.media.audiofx.Equalizer(0, audioSessionId).apply {
-                    enabled = true
-                }
-                audioFxEqualizer = eq
-                // Conservar y reaplicar los valores actuales de las 5 bandas
-                bandDbValues.forEachIndexed { i, dbVal ->
-                    applyBandGain(eq, i, dbVal)
-                }
-            } catch (_: Exception) {
-                audioFxEqualizer = null
-            }
-        } else {
-            audioFxEqualizer = null
-        }
-
-        onDispose {
-            // Liberar el efecto nativo: sin release() queda enganchado al audioSessionId
-            // y se filtra el recurso de hardware.
-            try {
-                audioFxEqualizer?.release()
-            } catch (_: Exception) { }
-            audioFxEqualizer = null
-        }
-    }
-
+    // El efecto nativo lo posee el PlaybackService (unico Equalizer sobre la
+    // sesion de audio). La UI solo envia los niveles y la preseleccion.
     fun applyPreset(preset: String) {
         selectedPreset = preset
         val newValues = when (preset) {
@@ -635,10 +591,8 @@ private fun EqualizerContent(
             "Pop" -> listOf(-1f, 2f, 4f, 2f, -1f)
             else -> listOf(0f, 0f, 0f, 0f, 0f)
         }
-        newValues.forEachIndexed { i, v ->
-            bandDbValues[i] = v
-            applyBandGain(audioFxEqualizer, i, v)
-        }
+        newValues.forEachIndexed { i, v -> bandDbValues[i] = v }
+        onApplyBands(newValues, preset)
     }
 
     Column(
@@ -745,7 +699,7 @@ private fun EqualizerContent(
                         onValueChange = { newDb ->
                             bandDbValues[index] = newDb
                             selectedPreset = "Personalizado"
-                            applyBandGain(audioFxEqualizer, index, newDb)
+                            onApplyBands(bandDbValues.toList(), "Personalizado")
                         },
                         colors = colors
                     )

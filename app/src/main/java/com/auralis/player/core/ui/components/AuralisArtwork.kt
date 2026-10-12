@@ -1,5 +1,7 @@
 package com.auralis.player.core.ui.components
 
+import android.net.Uri
+import java.io.File
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +38,17 @@ fun AuralisArtwork(
     
     val validReference = remember(artworkReference) {
         when (artworkReference) {
-            is String -> artworkReference.takeIf { it.isNotBlank() }
+            is String -> artworkReference
+                .takeIf { it.isNotBlank() }
+                // Las portadas embebidas pueden haberse guardado como ruta
+                // absoluta sin esquema; Coil necesita un URI valido.
+                ?.let { ref ->
+                    if (!ref.contains("://") && ref.startsWith("/")) {
+                        Uri.fromFile(File(ref)).toString()
+                    } else {
+                        ref
+                    }
+                }
             else -> artworkReference
         }
     }

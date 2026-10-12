@@ -119,7 +119,7 @@ private fun AlbumsGrid(
     spacing: AppSpacing
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Adaptive(minSize = 150.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(spacing.l),
         horizontalArrangement = Arrangement.spacedBy(spacing.m),

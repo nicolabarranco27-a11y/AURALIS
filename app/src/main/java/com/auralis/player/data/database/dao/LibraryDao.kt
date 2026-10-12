@@ -109,21 +109,16 @@ interface LibraryDao {
     suspend fun getById(id: String): SongEntity?
 
     /**
-     * Busqueda insensible a mayusculas y acentos. `LOWER` de SQLite solo
-     * convierte ASCII, por lo que tambien se reemplazan las vocales
-     * acentuadas (mayusculas y minusculas) y la enie. La consulta llega ya
-     * normalizada desde la capa de aplicacion.
+     * Busqueda insensible a mayusculas y acentos sobre la clave premormalizada
+     * [SongEntity.searchKey]. La consulta llega ya normalizada desde la capa de
+     * aplicacion (ver `normalizeForSearch`), de modo que solo se evalua un
+     * unico LIKE por fila.
      */
     @Query(
         """
         SELECT * FROM songs
         WHERE isAvailable = 1
-          AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-              REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
-                LOWER(title || ' ' || COALESCE(artist, '') || ' ' || COALESCE(album, '')),
-              'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u'), 'ñ', 'n'),
-              'Á', 'a'), 'É', 'e'), 'Í', 'i'), 'Ó', 'o'), 'Ú', 'u'), 'Ü', 'u'), 'Ñ', 'n')
-            LIKE '%' || :query || '%'
+          AND searchKey LIKE '%' || :query || '%'
         ORDER BY title COLLATE NOCASE
         """,
     )

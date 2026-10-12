@@ -35,7 +35,7 @@ class AlbumDetailViewModel @Inject constructor(
     private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
-    private val albumId: String = checkNotNull(savedStateHandle["albumId"])
+    private val albumId: String = savedStateHandle.get<String>("albumId").orEmpty()
     
     private val _uiState = MutableStateFlow(AlbumDetailUiState())
     val uiState: StateFlow<AlbumDetailUiState> = _uiState.asStateFlow()

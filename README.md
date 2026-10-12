@@ -2,7 +2,7 @@
 
 Auralis es un reproductor de música moderno, elegante y sin anuncios para Android. Diseñado con una arquitectura limpia, sigue las mejores prácticas de desarrollo Android y ofrece una experiencia de usuario fluida con Material Design 3.
 
-> **Versión actual**: v0.1.0 (`59403f7`). Cambios adicionales viven en el working tree y serán consolidados como v0.2.0. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
+> **Última release**: v0.1.0 (`59403f7`). Un conjunto de mejoras (ecualizador, búsqueda, Ajustes, nuevo logo/ícono, tests instrumentados, CI) está **consolidado en el repositorio** (2026-10-12) y se agrupará como v0.2.0 al bumpear la versión. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
 
 ## 📱 Capturas de Pantalla
 
@@ -27,16 +27,16 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
   - 💿 **Álbumes** - Agrupados por álbum con detalle
   - 🎤 **Artistas** - Por artista con sus álbumes
   - 📋 **Playlists** - **CRUD completo**: crear, renombrar, eliminar, añadir/quitar canciones, reproducción integrada
-  - ❤️ **Favoritos** - Persistidos en Room (sin UI dedicada en v0.1.0)
+  - ❤️ **Favoritos** - Persistidos en Room con vista dedicada y toggle en las filas
 
-### Interfaz de Usuario (v0.1.0)
+### Interfaz de Usuario
 - **Material Design 3** - Diseño moderno y consistente
 - **Jetpack Compose** - UI declarativa y reactiva
-- **Tema personalizado** - Colores, tipografía, formas y motion tokens
-- **Navegación por cajón (Drawer)** - Acceso rápido a todas las secciones
-- **Barra de reproducción persistente** - Mini-player con `Slider`
-- **Pantalla de reproducción completa** - Carátula, controles, seek
-- **Animaciones fluidas** - Transiciones suaves entre estados
+- **Tema personalizado** - Colores, tipografía, formas y motion tokens (con selección de tema persistida)
+- **Navegación por cajón (Drawer)** - Acceso rápido a todas las secciones, con item activo resaltado
+- **Barra de reproducción persistente** - Mini-player con indicador de progreso (`LinearProgressIndicator`)
+- **Pantalla de reproducción completa** - Carátula tipo vinilo, controles, seek y visualizador
+- **Ecualizador de 5 bandas** - AudioFX con presets y persistencia
 
 ### Arquitectura y Calidad
 - **Clean Architecture** - Separación Domain / Data / Presentation
@@ -46,15 +46,19 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - **KSP** - Procesamiento de símbolos Kotlin para Room/Hilt
 - **ProGuard/R8** - Optimización y ofuscación en release
 
-### Pendientes de consolidación (working tree → v0.2.0)
+### Novedades consolidadas (2026-10-12 → hacia v0.2.0)
 - Ecualizador de 5 bandas con AudioFX real y persistencia
 - Búsqueda inteligente con Autocomplete
-- Toggle de Favoritos en filas
+- Toggle de Favoritos en filas y vista dedicada de Favoritos
 - Drawer con sección activa resaltada
-- Pantalla de Ajustes real
+- Pantalla de Ajustes real con persistencia de tema
 - Carrusel "Acceso Rápido" y filtros por chips en Home
 - Detalles de Pista
-- Refinamiento visual (Material Icons, vinilo, glow)
+- Nuevo **logo e ícono de app**
+- **Versión visible en el Drawer** (`v0.1.0`)
+- **Permiso runtime `POST_NOTIFICATIONS`** (Android 13+)
+- **Tests instrumentados** y **CI con matriz de emuladores** (API 26/29/33/36)
+- Refinamiento visual (Material Icons Rounded, vinilo, glow, visualizador)
 
 Consultá `docs/FEATURES.md` y `docs/RELEASE_PLAN.md` para el detalle completo.
 
@@ -70,12 +74,12 @@ Consultá `docs/FEATURES.md` y `docs/RELEASE_PLAN.md` para el detalle completo.
 | **Reproducción** | Media3 / ExoPlayer | 1.11.0 |
 | **Background Work** | WorkManager + Hilt | 2.11.2 |
 | **Async** | Coroutines + Flow | 1.11.0 |
-| **Testing** | JUnit, Robolectric, Coroutines Test | - |
+| **Testing** | JUnit, Robolectric, Coroutines Test, AndroidX Test (instrumentados) | - |
 | **Build** | Gradle KTS (Kotlin DSL) | AGP 9.3.2 |
 | **JDK** | 21 | |
 | **Min SDK** | Android 8.0 (API 26) | |
-| **Target SDK** | Android 14 (API 36) | |
-| **Compile SDK** | Android 15 (API 37) | |
+| **Target SDK** | API 36 | |
+| **Compile SDK** | API 37 | |
 | **VersionName** | 0.1.0 | |
 | **VersionCode** | 1 | |
 
@@ -105,10 +109,12 @@ app/src/main/java/com/auralis/player/
 │   ├── albums/                    # AlbumsScreen, AlbumDetailScreen, ViewModels
 │   ├── artists/                   # ArtistsScreen, ArtistDetailScreen, ViewModels
 │   ├── playlists/                 # PlaylistsScreen, PlaylistDetailScreen, AddToPlaylistScreen + ViewModels
-│   ├── settings/                  # SettingsScreen (working tree)
+│   ├── settings/                  # SettingsScreen, ThemeController
 │   └── navigation/                # ReproductorNavHost, Rutas, Drawer
 └── App.kt / MainActivity.kt       # Entry points
 ```
+
+Tests instrumentados en `app/src/androidTest/` (DAO en dispositivo + smoke de UI) y script `tools/run-instrumented-tests.ps1`.
 
 ## 🚀 Primeros Pasos
 
@@ -159,10 +165,19 @@ keyPassword=tu_key_password
 ## 🧪 Testing
 
 ```bash
+# Tests unitarios (JVM)
 ./gradlew testDebugUnitTest
+
+# Tests instrumentados (requieren dispositivo/emulador conectado)
 ./gradlew connectedDebugAndroidTest
-./gradlew jacocoTestReport
+# o en Windows:
+powershell -File tools/run-instrumented-tests.ps1
+
+# Lint
+./gradlew lintDebug
 ```
+
+La integración continua (`.github/workflows/android-ci.yml`) corre **unit + lint** y, además, **tests instrumentados** en una matriz de emuladores (API 26 / 29 / 33 / 36).
 
 ## 📋 Permisos Requeridos
 
@@ -170,8 +185,10 @@ keyPassword=tu_key_password
 |---------|-----|-----|
 | `READ_MEDIA_AUDIO` | Leer archivos de audio (Android 13+) | 33+ |
 | `READ_EXTERNAL_STORAGE` | Leer almacenamiento (Android 12 y anteriores) | ≤32 |
-| `POST_NOTIFICATIONS` | Mostrar controles en notificación | 33+ |
+| `POST_NOTIFICATIONS` | Mostrar controles de reproducción en la notificación y pantalla de bloqueo (Android 13+) | 33+ |
+| `FOREGROUND_SERVICE` | Servicio en primer plano | 26+ |
 | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` | Servicio de reproducción en foreground | 29+ |
+| `WAKE_LOCK` | Mantener la reproducción con la pantalla apagada | todo |
 | `MODIFY_AUDIO_SETTINGS` | Aplicar efectos de AudioFX (Ecualizador) | todo |
 
 > **Nota**: La app maneja automáticamente la solicitud de permisos en tiempo de ejecución con UI guiada.

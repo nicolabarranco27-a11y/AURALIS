@@ -105,5 +105,6 @@ class QueueViewModelTest {
         override fun addSongToQueue(song: Song) {}
         override fun moveQueueItem(fromIndex: Int, toIndex: Int) {}
         override fun removeQueueItem(index: Int) { lastRemovedIndex = index }
+        override fun applyEqualizerBands(bands: List<Float>, preset: String) {}
     }
 }

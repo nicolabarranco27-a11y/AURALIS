@@ -278,6 +278,7 @@ class HomeViewModelTest {
         override fun observeQueue(): kotlinx.coroutines.flow.Flow<List<com.auralis.player.domain.model.Song>> = kotlinx.coroutines.flow.MutableStateFlow<List<com.auralis.player.domain.model.Song>>(emptyList()).asStateFlow()
         override fun moveQueueItem(fromIndex: Int, toIndex: Int) {}
         override fun removeQueueItem(index: Int) {}
+        override fun applyEqualizerBands(bands: List<Float>, preset: String) {}
     }
 
     private class FakeLibraryRepository(private val songs: List<Song> = emptyList()) : LibraryRepository {

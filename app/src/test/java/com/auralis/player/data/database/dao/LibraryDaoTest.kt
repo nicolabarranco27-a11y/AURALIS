@@ -57,6 +57,7 @@ class LibraryDaoTest {
         playCount = 0L,
         lastPlayedAtEpochMs = null,
         isFavorite = false,
+        searchKey = com.auralis.player.data.database.mapper.buildSearchKey(title, artist, null),
     )
 
     @Test

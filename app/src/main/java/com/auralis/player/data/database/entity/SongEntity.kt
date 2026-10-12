@@ -41,6 +41,12 @@ data class SongEntity(
     /** URI de la portada (referencia local o de MediaStore). */
     val coverUri: String? = null,
     /**
+     * Clave de busqueda premormalizada (minusculas y sin acentos) de
+     * title+artist+album. Evita recalcular REPLACE/LOWER por fila en cada
+     * consulta, critico en bibliotecas grandes.
+     */
+    val searchKey: String = "",
+    /**
      * false = la cancion ya no existe en MediaStore (eliminacion logica).
      * Preserva playlists, favoritos e historico ante desapariciones
      * temporales del archivo.

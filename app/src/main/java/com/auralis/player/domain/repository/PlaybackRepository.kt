@@ -45,4 +45,7 @@ interface PlaybackRepository {
 
     /** Elimina la cancion en [index] de la cola. */
     fun removeQueueItem(index: Int)
+
+    /** Aplica y persiste los niveles de banda del ecualizador. */
+    fun applyEqualizerBands(bands: List<Float>, preset: String)
 }

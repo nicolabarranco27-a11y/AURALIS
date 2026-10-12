@@ -37,7 +37,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
-    private val playlistIdString: String = checkNotNull(savedStateHandle["playlistId"])
+    private val playlistIdString: String = savedStateHandle.get<String>("playlistId").orEmpty()
     private val playlistId = PlaylistId(playlistIdString)
 
     private val _uiState = MutableStateFlow(PlaylistDetailUiState())

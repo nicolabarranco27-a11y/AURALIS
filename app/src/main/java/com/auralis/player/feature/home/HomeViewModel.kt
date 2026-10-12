@@ -40,6 +40,7 @@ data class HomeUiState(
     val hasPermission: Boolean = false,
     val scanStatus: ScanDisplayStatus = ScanDisplayStatus.Idle,
     val songs: List<Song> = emptyList(),
+    val favoriteIds: Set<com.auralis.player.domain.model.SongId> = emptySet(),
     val playbackState: com.auralis.player.domain.model.PlaybackState = com.auralis.player.domain.model.PlaybackState.IDLE,
     val isSearchActive: Boolean = false,
     val searchQuery: String = "",
@@ -98,13 +99,15 @@ class HomeViewModel @Inject constructor(
                 coreFlow,
                 _isSearchActive,
                 _searchQuery,
-                _searchResults
-            ) { core, active, query, results ->
+                _searchResults,
+                favoritesRepository.observeFavorites()
+            ) { core, active, query, results, favorites ->
                 val (songs, status, playback) = core
                 HomeUiState(
                     hasPermission = context.hasAudioAccess(),
                     scanStatus = status.toDisplayStatus(),
                     songs = songs,
+                    favoriteIds = favorites,
                     playbackState = playback,
                     isSearchActive = active,
                     searchQuery = query,

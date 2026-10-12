@@ -2,7 +2,7 @@
 
 Auralis utiliza una personalización profunda de Material Design 3 para crear una experiencia visual coherente y "Premium".
 
-> **Estado**: Este documento describe los tokens y componentes de la versión entregable v0.1.0. Los cambios visuales que viven en el working tree se marcan explícitamente como **(pendiente de consolidación)**.
+> **Estado**: Este documento describe los tokens y componentes actualmente presentes en el repositorio (consolidados el 2026-10-12 sobre la base de v0.1.0).
 
 ## 🎨 Paleta de Colores (`Color.kt`)
 La identidad se basa en un tema oscuro neutro con acentos tecnológicos vibrantes.
@@ -27,37 +27,43 @@ La identidad se basa en un tema oscuro neutro con acentos tecnológicos vibrante
 ## 🧩 Componentes Personalizados Core
 
 ### `AuralisArtwork`
-Componente inteligente para carga de imágenes (v0.1.0):
+Componente inteligente para carga de imágenes:
 - Soporta URIs de sistema y referencias opacas.
-- **Fallback v0.1.0**: Si no hay imagen, renderiza el logo corporativo (`placeholder_ec`).
-- **Fallback pendiente de consolidación**: Si no hay imagen, renderiza un contenedor oscuro con un icono `Icons.Rounded.MusicNote` en color de acento (`alpha = 0.35f`) ocupando el 50% del contenedor.
-- **Animación**: Crossfade suave durante la carga.
+- **Fallback**: si no hay imagen, renderiza un icono `Icons.Rounded.MusicNote` centrado en color de acento (`alpha = 0.35f`).
+- **Animación**: crossfade suave durante la carga.
+- `ImageLoader` global con caché limitada al 25% de memoria y downsampling.
 
-### `VerticalFader` (pendiente de consolidación)
-Componente nativo para el ecualizador:
-- Diseñado para evitar los bugs de rotación de los Sliders estándar.
+### Marca (logo e íconos de aplicación)
+- **Logo in-app**: `drawable/logo_auralis.png` (512×512). Se usa como logo circular en el header de Inicio (`HomeScreen`) con `CircleShape` y `ContentScale.Fit`.
+- **Ícono de app (launcher)**: ícono adaptativo con foreground PNG en todas las densidades (`mipmap-*/ic_launcher_foreground.png`) sobre fondo `ic_launcher_background = #000000`. El logotipo ocupa la zona segura (~61%).
+- El logo corporativo del Drawer (`estalingradocorp_logo.jpg`) es **independiente** del logo de Auralis.
+
+### `VerticalFader`
+Composable propio para el ecualizador (evita los bugs de rotación de los `Slider` estándar):
 - Implementado con `Box` + `detectVerticalDragGestures` + `detectTapGestures`.
 - Track de 4dp con fill dinámico proporcional al valor (`-15dB..+15dB`).
 - Tirador circular de 20dp con shadow + borde en color de acento.
-- Cobertura: solo en `PlayerScreen.EqualizerContent` (working tree).
+- Cobertura: `PlayerScreen` (contenido del ecualizador).
 
 ### `QueueFeedbackOverlay`
 Overlay efímero que aparece al hacer swipe-to-queue, confirmando que la canción fue añadida a la cola.
 
-### `AudioEqualizerVisualizer` (pendiente de consolidación)
-Visualizador animado de 4 barras en el top bar del `PlayerScreen`. Altura animada con `rememberInfiniteTransition` + `tween` + `RepeatMode.Reverse`. Se atenúa cuando la reproducción está pausada.
+### `AudioEqualizerVisualizer`
+Visualizador animado de 4 barras en el top bar de `PlayerScreen`. Altura animada con `rememberInfiniteTransition` + `tween` + `RepeatMode.Reverse`. Se atenúa cuando la reproducción está pausada.
 
-## 🎯 Mini-Player (v0.1.0 vs pendiente de consolidación)
+### `PlayerScreen` (reproductor rediseñado)
+- Carátula tipo **vinilo circular** con shadow y halo glow en el botón Play.
+- Visualizador animado en el top bar.
+- Diálogo "Detalles de la Pista".
 
-- **v0.1.0**: usa `Slider` para reflejar progreso, ocupando ~32dp verticales con thumb visible.
-- **Pendiente de consolidación**: reemplazado por `LinearProgressIndicator` de 3dp sin interactividad. Reduce ruido visual; el seek se realiza en `PlayerScreen`.
+## 🎯 Mini-Player
 
-## 🎯 Drawer (v0.1.0 vs pendiente de consolidación)
+Usa `LinearProgressIndicator` pasivo de 3dp (sin interactividad). El seek se realiza en `PlayerScreen`. Reduce ruido visual y mantiene la barra compacta.
 
-- **v0.1.0**: los items del Drawer no indican la sección activa.
-- **Pendiente de consolidación**: cada item se resalta con `secondaryContainer` + texto en negrita + color de acento cuando coincide con `currentRoute` (vía `currentBackStackEntryAsState`).
+## 🎯 Drawer
+
+Cada item se resalta con `secondaryContainer` + texto en negrita + color de acento cuando coincide con la ruta actual (vía `currentBackStackEntryAsState`), dentro de un `RoundedCornerShape(percent = 50)`. Además, la sección inferior muestra la **versión de la app** (`v0.1.0`) junto a EstalingradoCorp.
 
 ## 📚 Iconografía
 
-- **v0.1.0**: glifos Unicode (`⌂`, `♪`, `⚙`, etc.) en botones, drawer y top bar.
-- **Pendiente de consolidación**: reemplazo por `androidx.compose.material.icons.Icons.Rounded` (`Search`, `Shuffle`, `PlayArrow`, `Pause`, `MoreVert`, `Tune`, `Timer`, `Info`, `MusicNote`, `Favorite`, `FavoriteBorder`).
+Se usan `androidx.compose.material.icons.Icons.Rounded.*` / `Icons.AutoMirrored.Rounded.*` (vía `material-icons-extended`) — por ejemplo `Search`, `Shuffle`, `PlayArrow`, `Pause`, `MoreVert`, `Tune`, `Timer`, `Info`, `MusicNote`, `Favorite`, `FavoriteBorder` — en lugar de glifos Unicode.

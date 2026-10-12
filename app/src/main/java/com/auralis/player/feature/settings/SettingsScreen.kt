@@ -40,6 +40,7 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(colors.background)
             .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(spacing.l)
             .verticalScroll(rememberScrollState())
     ) {

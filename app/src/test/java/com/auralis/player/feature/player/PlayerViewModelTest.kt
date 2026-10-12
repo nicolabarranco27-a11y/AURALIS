@@ -99,5 +99,6 @@ class PlayerViewModelTest {
         override fun observeQueue(): Flow<List<Song>> = MutableStateFlow<List<Song>>(emptyList()).asStateFlow()
         override fun moveQueueItem(fromIndex: Int, toIndex: Int) {}
         override fun removeQueueItem(index: Int) {}
+        override fun applyEqualizerBands(bands: List<Float>, preset: String) {}
     }
 }

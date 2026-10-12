@@ -30,7 +30,7 @@ class AddToPlaylistViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
 ) : ViewModel() {
 
-    private val playlistIdString: String = checkNotNull(savedStateHandle["playlistId"])
+    private val playlistIdString: String = savedStateHandle.get<String>("playlistId").orEmpty()
     private val playlistId = PlaylistId(playlistIdString)
 
     private val _uiState = MutableStateFlow(AddToPlaylistUiState())
@@ -52,6 +52,7 @@ class AddToPlaylistViewModel @Inject constructor(
     }
 
     fun toggleSongInPlaylist(songId: SongId) {
+        if (playlistIdString.isBlank()) return
         viewModelScope.launch {
             if (uiState.value.playlistSongsIds.contains(songId.value)) {
                 playlistRepository.removeSong(playlistId, songId)

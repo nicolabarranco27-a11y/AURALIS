@@ -1,40 +1,47 @@
 # Plan de Lanzamiento (Release Plan) - v1.0.0
 
-**Versión actual entregable**: v0.1.0 (`59403f7`)
-**Working tree**: contiene cambios listos para ser consolidados como **v0.2.0** (ver "Bloque previo al Milestone 1").
+**Última versión entregable (release)**: v0.1.0 (`59403f7`)
+**Repositorio**: los cambios acumulados se **consolidaron** en el commit del 2026-10-12. `versionName` sigue en `0.1.0`; el **bump a v0.2.0** (y el tag) está pendiente.
 
-> El plan hacia v1.0.0 se mantiene, pero los hitos se han ajustado al estado real del repositorio. Los cambios que viven en el working tree deben consolidarse antes de iniciar el Milestone 1.
+> El plan hacia v1.0.0 se mantiene, pero los hitos se han ajustado al estado real del repositorio.
 
 ---
 
-## 🧱 Bloque previo al Milestone 1: Consolidación del working tree (v0.2.0)
+## 🧱 Bloque previo al Milestone 1: Consolidación (v0.2.0)
 
-Estos cambios **ya están implementados en código** pero viven solo en el working tree. Deben commitease y bumpearse a `0.2.0` antes de iniciar el Milestone 1.
+Estos cambios están **implementados y consolidados en el repositorio** (2026-10-12). Solo resta **bumpear `versionName`/`versionCode` a `0.2.0`** y crear el tag antes de iniciar el Milestone 1.
 
 ### Funcionalidad
-- [ ] Búsqueda con Autocomplete (Home)
-- [ ] Toggle de Favoritos en filas (Home, Songs, AlbumDetail, ArtistDetail, PlaylistDetail)
-- [ ] Ecualizador real con AudioFX (5 bandas + presets + persistencia)
-- [ ] Diálogo "Detalles de la Pista" en PlayerScreen
-- [ ] Pantalla de Ajustes real (`SettingsScreen`)
-- [ ] Drawer con item seleccionado
-- [ ] Carrusel "Acceso Rápido" en Home
-- [ ] Filtros por chips en Home
+- [x] Búsqueda con Autocomplete (Home)
+- [x] Toggle de Favoritos en filas (Home, Songs, AlbumDetail, ArtistDetail, PlaylistDetail)
+- [x] Vista dedicada de Favoritos (ruta en Drawer)
+- [x] Ecualizador real con AudioFX (5 bandas + presets + persistencia)
+- [x] Diálogo "Detalles de la Pista" en PlayerScreen
+- [x] Pantalla de Ajustes real (`SettingsScreen`) con persistencia de tema
+- [x] Drawer con item seleccionado
+- [x] Carrusel "Acceso Rápido" en Home
+- [x] Filtros por chips en Home
 
 ### UI/UX
-- [ ] `AuralisArtwork` con fallback `MusicNote`
-- [ ] PlayerScreen rediseñado (vinilo + glow + visualizador)
-- [ ] Mini-player rediseñado (`LinearProgressIndicator`)
-- [ ] Iconos Material Rounded
+- [x] `AuralisArtwork` con fallback `MusicNote`
+- [x] PlayerScreen rediseñado (vinilo + glow + visualizador)
+- [x] Mini-player rediseñado (`LinearProgressIndicator`)
+- [x] Iconos Material Rounded
+- [x] Nuevo logo/ícono de app + versión en el Drawer
 
 ### Correcciones
-- [ ] `HomeViewModel.onSongClick` a `Dispatchers.Default` (UUIDs)
-- [ ] `AlbumDetail` cover con prioridad no vacío
+- [x] `HomeViewModel.onSongClick` a `Dispatchers.Default` (UUIDs)
+- [x] `AlbumDetail` cover con prioridad no vacío
+- [x] Escaneo de música descargada (proyección MediaStore compatible + `IS_MUSIC`)
 
 ### Infraestructura
-- [ ] Permiso `MODIFY_AUDIO_SETTINGS` agregado al manifest (ya en working tree)
-- [ ] `material-icons-extended` en catálogo (ya en working tree)
-- [ ] Test `HomeViewModelTest` con `FakeFavoritesRepository`
+- [x] Permiso `MODIFY_AUDIO_SETTINGS` agregado al manifest
+- [x] Permiso `WAKE_LOCK` agregado al manifest
+- [x] Solicitud runtime de `POST_NOTIFICATIONS` (Android 13+)
+- [x] `material-icons-extended` en catálogo
+- [x] Test `HomeViewModelTest` con `FakeFavoritesRepository`
+- [x] Tests instrumentados (`app/src/androidTest/`) + script local
+- [x] CI con matriz de emuladores (`.github/workflows/android-ci.yml`)
 
 ---
 

@@ -2,7 +2,7 @@
 
 Auralis está construido siguiendo los principios de **Clean Architecture** y las guías oficiales de arquitectura de Google.
 
-> **Estado**: Este documento describe la arquitectura de la versión entregable v0.1.0. Los cambios arquitectónicos que viven en el working tree se marcan explícitamente como **(pendiente de consolidación)**.
+> **Estado**: Este documento describe la arquitectura actualmente presente en el repositorio (consolidada el 2026-10-12 sobre la base de v0.1.0).
 
 ## 🧱 Capas del Sistema
 
@@ -17,7 +17,7 @@ Implementación de la persistencia y servicios externos.
 - **Room**: Base de datos SQLite local para el catálogo y metadatos. Incluye `FavoritesDao`, `PlaylistDao`, `LibraryDao`.
 - **MediaStore**: Origen de datos para el escaneo de archivos del dispositivo.
 - **Media3 (ExoPlayer)**: Implementación real de la reproducción mediante `MediaSessionService`.
-- **SharedPreferences (pendiente de consolidación)**: Almacenamiento ligero para configuraciones de audio (Ecualizador) en `EqualizerPreferences`.
+- **SharedPreferences**: Almacenamiento ligero para configuraciones de audio (Ecualizador) en `EqualizerPreferences` y preferencia de tema en `ThemeController` (migración a DataStore prevista en `docs/RELEASE_PLAN.md`).
 
 ### 3. UI Layer (`feature/` + `core/ui/`)
 Capa de presentación organizada por funcionalidades.
@@ -35,21 +35,21 @@ Se utiliza **Hilt** para gestionar las dependencias en todo el grafo de la aplic
 ## 🧵 Gestión de Hilos y Concurrencia
 
 - **Coroutines**: Para todas las tareas asíncronas.
-- **Dispatchers.Default**: Procesamiento intensivo de CPU. **(pendiente de consolidación)** La generación de UUIDs en `HomeViewModel.onSongClick` se ha migrado aquí.
+- **Dispatchers.Default**: Procesamiento intensivo de CPU. La generación de UUIDs en `HomeViewModel.onSongClick` se ejecuta aquí.
 - **Dispatchers.IO**: Lectura de base de datos y sistema de archivos.
 - **Dispatchers.Main**: Actualizaciones de UI y llamadas obligatorias de Media3.
 
-## 🔊 Flujo de Audio y Efectos (v0.1.0)
+## 🔊 Flujo de Audio y Efectos
 
-En la versión 0.1.0, el procesamiento de audio es el estándar de ExoPlayer sin efectos extra.
+La reproducción es el estándar de ExoPlayer (Media3), sin efectos extra por defecto.
 
-### Ecualizador (pendiente de consolidación)
+### Ecualizador (AudioFX)
 
-La implementación prevista es:
 - `PlaybackService` detecta el `audioSessionId` dinámico vía `Player.Listener.onAudioSessionIdChanged`.
-- `EqualizerPreferences` (`SharedPreferences`) provee los valores guardados.
+- `EqualizerPreferences` (`SharedPreferences`) provee los valores guardados y el preset activo (Normal / Bass Boost / Rock / Pop).
 - Al cambiar sesión, se libera el `Equalizer` previo y se crea uno nuevo con la sesión actual.
 - Cada banda se mapea de dB a milibel usando `bandLevelRange` del dispositivo.
+- La UI del ecualizador vive en `PlayerScreen` y usa el composable propio `VerticalFader`.
 
 > **Importante**: Instanciar `android.media.audiofx.Equalizer` siempre dentro de `try-catch` para tolerar dispositivos sin soporte de hardware.
 
@@ -63,7 +63,13 @@ La implementación prevista es:
 
 ## ✅ Cobertura de Tests
 
-Existen tests unitarios en `app/src/test/` para:
+### Tests unitarios (`app/src/test/`)
 - Capa de datos: `LibraryDaoTest`, `PlaylistDaoTest`, `MappersTest`, `LibraryScanSchedulerTest`, `LibraryScanWorkerTest`, `LibraryScannerTest`, `RoomFavoritesRepositoryTest`, `RoomPlaylistRepositoryTest`, `InMemoryPlaybackRepositoryTest`.
 - Dominio: `DomainPurityTest`, `DomainModelsTest`, `AppResultTest`.
-- UI: `HomeViewModelTest` (incluye `FakeFavoritesRepository` **(pendiente de consolidación)**).
+- UI: `HomeViewModelTest` (con `FakeFavoritesRepository`).
+
+### Tests instrumentados (`app/src/androidTest/`)
+- `LibraryDaoInstrumentedTest`: operaciones del DAO contra el SQLite real del dispositivo.
+- `AppLaunchSmokeTest`: arranque de la app y verificación del Drawer/versión (con `GrantPermissionRule` + `RuleChain`).
+
+La CI (`.github/workflows/android-ci.yml`) ejecuta ambos conjuntos: unit+lint y los instrumentados en una matriz de emuladores (API 26 / 29 / 33 / 36).

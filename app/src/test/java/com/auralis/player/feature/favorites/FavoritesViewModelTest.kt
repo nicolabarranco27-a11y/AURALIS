@@ -137,5 +137,6 @@ class FavoritesViewModelTest {
         override fun addSongToQueue(song: Song) {}
         override fun moveQueueItem(fromIndex: Int, toIndex: Int) {}
         override fun removeQueueItem(index: Int) {}
+        override fun applyEqualizerBands(bands: List<Float>, preset: String) {}
     }
 }

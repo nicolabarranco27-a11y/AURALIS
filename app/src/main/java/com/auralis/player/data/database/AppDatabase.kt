@@ -23,7 +23,7 @@ import com.auralis.player.data.database.entity.SongEntity
         PlaylistEntity::class,
         PlaylistSongEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -47,6 +47,25 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "ALTER TABLE albums ADD COLUMN coverUri TEXT DEFAULT NULL",
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE songs ADD COLUMN searchKey TEXT NOT NULL DEFAULT ''",
+                )
+                // Backfill de la clave premormalizada replicando la
+                // normalizacion de `buildSearchKey` (minusculas sin acentos).
+                db.execSQL(
+                    """
+                    UPDATE songs SET searchKey = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                        REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+                          LOWER(title || ' ' || COALESCE(artist, '') || ' ' || COALESCE(album, '')),
+                        'á', 'a'), 'é', 'e'), 'í', 'i'), 'ó', 'o'), 'ú', 'u'), 'ü', 'u'), 'ñ', 'n'),
+                        'Á', 'a'), 'É', 'e'), 'Í', 'i'), 'Ó', 'o'), 'Ú', 'u'), 'Ü', 'u'), 'Ñ', 'n')
+                    """,
                 )
             }
         }

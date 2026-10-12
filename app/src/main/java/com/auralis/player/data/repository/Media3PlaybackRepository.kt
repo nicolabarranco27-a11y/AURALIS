@@ -11,7 +11,12 @@ import com.auralis.player.domain.model.RepeatMode
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.repository.PlaybackRepository
 import com.auralis.player.feature.playback.MusicServiceConnection
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,6 +26,11 @@ class Media3PlaybackRepository @Inject constructor(
 ) : PlaybackRepository {
 
     private var lastQueuedIndex: Int = -1
+
+    // El MediaController esta ligado al hilo principal; el mapeo a MediaItem
+    // (costoso con bibliotecas grandes) se hace en Default y se vuelve a Main
+    // para invocar al controller.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun observePlaybackState(): Flow<PlaybackState> = serviceConnection.playbackState
 
@@ -59,12 +69,16 @@ class Media3PlaybackRepository @Inject constructor(
     }
 
     override fun setQueue(items: List<QueueItem>, startIndex: Int) {
-        val controller = serviceConnection.mediaController ?: return
-        val mediaItems = items.map { it.song.toMediaItem() }
-        lastQueuedIndex = startIndex
-        controller.setMediaItems(mediaItems, startIndex, 0L)
-        controller.prepare()
-        controller.play()
+        scope.launch {
+            val mediaItems = withContext(Dispatchers.Default) {
+                items.map { it.song.toMediaItem() }
+            }
+            val controller = serviceConnection.mediaController ?: return@launch
+            lastQueuedIndex = startIndex
+            controller.setMediaItems(mediaItems, startIndex, 0L)
+            controller.prepare()
+            controller.play()
+        }
     }
 
     override fun addSongToQueue(song: Song) {
@@ -101,6 +115,10 @@ class Media3PlaybackRepository @Inject constructor(
         if (index !in 0 until controller.mediaItemCount) return
         controller.removeMediaItem(index)
         lastQueuedIndex = -1
+    }
+
+    override fun applyEqualizerBands(bands: List<Float>, preset: String) {
+        serviceConnection.setEqualizerBands(bands, preset)
     }
 
     private fun Song.toMediaItem(): MediaItem {

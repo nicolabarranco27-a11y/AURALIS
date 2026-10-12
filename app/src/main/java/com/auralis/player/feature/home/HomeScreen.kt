@@ -472,9 +472,9 @@ private fun MainContent(
 ) {
     var selectedFilter by remember { mutableStateOf("Todas") }
 
-    val filteredSongs = remember(state.songs, selectedFilter) {
+    val filteredSongs = remember(state.songs, selectedFilter, state.favoriteIds) {
         when (selectedFilter) {
-            "Favoritos" -> state.songs.filter { it.isFavorite }
+            "Favoritos" -> state.songs.filter { it.id in state.favoriteIds }
             else -> state.songs
         }
     }

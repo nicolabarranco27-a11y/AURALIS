@@ -143,6 +143,10 @@ class InMemoryPlaybackRepository @Inject constructor() : PlaybackRepository {
         update { it.copyFromQueue() }
     }
 
+    override fun applyEqualizerBands(bands: List<Float>, preset: String) {
+        // Sin motor de audio real no hay efecto que aplicar.
+    }
+
     private fun publishQueue() {
         _queueFlow.value = queue.map { it.song }
     }

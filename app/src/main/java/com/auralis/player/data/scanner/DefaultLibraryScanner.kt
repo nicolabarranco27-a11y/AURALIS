@@ -194,12 +194,12 @@ class DefaultLibraryScanner @Inject constructor(
     private suspend fun saveArtworkIfMissing(albumId: Long, artwork: ByteArray?): String? {
         if (artwork == null) return null
         val file = getCoverPath(albumId)
-        if (file.exists()) return file.absolutePath
+        if (file.exists()) return android.net.Uri.fromFile(file).toString()
 
         return withContext(ioDispatcher) {
             try {
                 file.writeBytes(artwork)
-                file.absolutePath
+                android.net.Uri.fromFile(file).toString()
             } catch (e: Exception) {
                 null
             }

@@ -2,7 +2,7 @@
 
 Pasos técnicos y administrativos obligatorios para publicar Auralis en la tienda oficial.
 
-**Estado del proyecto**: v0.1.0 entregable. La mayoría de requisitos siguen abiertos.
+**Estado del proyecto**: última release v0.1.0 (`59403f7`); consolidación de mejoras en el repositorio el 2026-10-12 (v0.2.0 pendiente de bump). La mayoría de requisitos de Store siguen abiertos.
 
 ---
 
@@ -10,16 +10,17 @@ Pasos técnicos y administrativos obligatorios para publicar Auralis en la tiend
 
 - [ ] **Nombre del Paquete**: Confirmar que `com.auralis.player` es definitivo.
 - [ ] **Versionado**: Definir `versionName` y `versionCode` para la release de Play Store. Actual: `0.1.0` / `1`.
-- [ ] **Icono Adaptativo**: Verificar resolución y comportamiento de las capas (foreground/background) en distintos dispositivos.
-- [ ] **Ofuscación (R8)**: Probar el build de `release` para asegurar que las reglas de ProGuard no rompan la inyección de dependencias ni la serialización de Room.
+- [ ] **Icono Adaptativo**: Verificar resolución y comportamiento de las capas (foreground/background) en distintos dispositivos. *Foreground actualizado (2026-10-12) en todas las densidades; background `#000000`.*
+- [ ] **Ofuscación (R8)**: Probar el build de `release` para asegurar que las reglas de ProGuard no rompan la inyección de dependencias ni la serialización de Room. *`assembleRelease` verificado localmente en la consolidación 2026-10-12.*
 - [ ] **Permisos**: Justificar el uso de permisos de almacenamiento si se solicita revisión de Google.
   - Permisos actualmente declarados:
     - `READ_MEDIA_AUDIO` (Android 13+)
     - `READ_EXTERNAL_STORAGE` (`maxSdkVersion=32`)
     - `FOREGROUND_SERVICE`
     - `FOREGROUND_SERVICE_MEDIA_PLAYBACK`
-    - `POST_NOTIFICATIONS` (Android 13+)
-    - `MODIFY_AUDIO_SETTINGS` (en working tree, para AudioFX)
+    - `POST_NOTIFICATIONS` (Android 13+, solicitado en runtime)
+    - `MODIFY_AUDIO_SETTINGS` (AudioFX / ecualizador)
+    - `WAKE_LOCK`
 - [ ] **App Bundle**: Generar archivo `.aab` firmado con una clave de producción segura.
 
 ---
@@ -45,10 +46,11 @@ Pasos técnicos y administrativos obligatorios para publicar Auralis en la tiend
 
 Antes de subir a "Pruebas Internas", verificar:
 
-- [ ] `./gradlew assembleDebug` sin errores.
-- [ ] `./gradlew lintDebug` sin errores críticos.
-- [ ] `./gradlew testDebugUnitTest` 100% verde.
-- [ ] CI de GitHub Actions en verde (último run: **success** ✅).
+- [ ] `./gradlew assembleDebug` sin errores. *(Verificado 2026-10-12 ✅)*
+- [ ] `./gradlew lintDebug` sin errores críticos. *Verificado localmente.*
+- [ ] `./gradlew testDebugUnitTest` 100% verde. *Verificado localmente.*
+- [ ] Tests instrumentados (`connectedDebugAndroidTest`) en dispositivo/emulador.
+- [ ] CI de GitHub Actions en verde (workflow de unit+lint; matriz de emuladores añadida 2026-10-12, pendiente de verificar en remoto).
 - [ ] Probar en al menos 2 dispositivos físicos diferentes.
 - [ ] Verificar el ciclo de vida del `MediaSessionService` tras bloqueo de pantalla prolongado.
 
@@ -65,7 +67,7 @@ Antes de subir a "Pruebas Internas", verificar:
 
 ## ⚠️ Bloqueos Conocidos
 
-- El proyecto se encuentra en **v0.1.0** con cambios significativos en el working tree que aún no se han consolidado como versión.
-- No se ha generado un build de release firmado todavía.
+- El proyecto se encuentra en **v0.1.0**; los cambios acumulados se consolidaron en el repositorio (2026-10-12) pero **todavía no se ha bumpeado la versión** (previsto v0.2.0).
+- No se ha generado un build de release **firmado** todavía (el release actual se genera sin firmar).
 - No existe captura de pantalla profesional.
 - No existe Política de Privacidad publicada.

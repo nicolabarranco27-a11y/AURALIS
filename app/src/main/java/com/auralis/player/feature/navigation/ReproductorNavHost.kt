@@ -1,5 +1,6 @@
 package com.auralis.player.feature.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +9,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +30,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.auralis.player.BuildConfig
 import com.auralis.player.R
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
@@ -60,10 +66,13 @@ object Routes {
     const val PLAYLIST_DETAIL = "playlist_detail/{playlistId}"
     const val ADD_TO_PLAYLIST = "add_to_playlist/{playlistId}"
     
-    fun albumDetail(albumId: String) = "album_detail/$albumId"
-    fun artistDetail(artistName: String) = "artist_detail/$artistName"
-    fun playlistDetail(playlistId: String) = "playlist_detail/$playlistId"
-    fun addToPlaylist(playlistId: String) = "add_to_playlist/$playlistId"
+    // Los argumentos se codifican: album/artista pueden contener '/', '?', '|',
+    // espacios o acentos que romperian el patron de ruta. Navigation decodifica
+    // los argumentos de path al leerlos.
+    fun albumDetail(albumId: String) = "album_detail/${Uri.encode(albumId)}"
+    fun artistDetail(artistName: String) = "artist_detail/${Uri.encode(artistName)}"
+    fun playlistDetail(playlistId: String) = "playlist_detail/${Uri.encode(playlistId)}"
+    fun addToPlaylist(playlistId: String) = "add_to_playlist/${Uri.encode(playlistId)}"
 }
 
 @Composable
@@ -214,7 +223,7 @@ private fun AuralisDrawerContent(
         DrawerItem("Álbumes", "▢", isSelected = currentRoute == Routes.ALBUMS, onClick = { onNavigate(Routes.ALBUMS) }, colors, spacing)
         DrawerItem("Artistas", "👤", isSelected = currentRoute == Routes.ARTISTS, onClick = { onNavigate(Routes.ARTISTS) }, colors, spacing)
         DrawerItem("Playlists", "☰", isSelected = currentRoute == Routes.PLAYLISTS, onClick = { onNavigate(Routes.PLAYLISTS) }, colors, spacing)
-        DrawerItem("Favoritos", "♥", isSelected = currentRoute == Routes.FAVORITES, onClick = { onNavigate(Routes.FAVORITES) }, colors, spacing)
+        DrawerItem("Favoritos", "", isSelected = currentRoute == Routes.FAVORITES, onClick = { onNavigate(Routes.FAVORITES) }, colors, spacing, iconImageVector = Icons.Rounded.FavoriteBorder)
         DrawerItem("Cola", "≡", isSelected = currentRoute == Routes.QUEUE, onClick = { onNavigate(Routes.QUEUE) }, colors, spacing)
         
         Spacer(modifier = Modifier.height(spacing.l))
@@ -238,7 +247,8 @@ private fun DrawerItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     colors: AppColors,
-    spacing: AppSpacing
+    spacing: AppSpacing,
+    iconImageVector: ImageVector? = null
 ) {
     val pillShape = RoundedCornerShape(percent = 50)
 
@@ -254,15 +264,29 @@ private fun DrawerItem(
             .padding(vertical = spacing.s, horizontal = spacing.m),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = icon,
-            style = AppType.title.copy(
-                fontSize = 20.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-            ),
-            color = if (isSelected) colors.accent else colors.textSecondary,
-            modifier = Modifier.width(32.dp)
-        )
+        if (iconImageVector != null) {
+            Box(
+                modifier = Modifier.width(32.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Icon(
+                    imageVector = iconImageVector,
+                    contentDescription = null,
+                    tint = if (isSelected) colors.accent else colors.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        } else {
+            Text(
+                text = icon,
+                style = AppType.title.copy(
+                    fontSize = 20.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                ),
+                color = if (isSelected) colors.accent else colors.textSecondary,
+                modifier = Modifier.width(32.dp)
+            )
+        }
         Text(
             text = label,
             style = AppType.body.copy(
@@ -300,7 +324,13 @@ private fun CorporateSection(
             Text(
                 text = "EstalingradoCorp",
                 style = AppType.label.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
-                color = colors.textPrimary
+                color = colors.textPrimary,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "v${BuildConfig.VERSION_NAME}",
+                style = AppType.label.copy(letterSpacing = 1.sp, fontWeight = FontWeight.Bold),
+                color = colors.accent
             )
         }
         
