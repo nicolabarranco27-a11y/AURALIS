@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auralis - Tu música, organizada</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0b0c10',
+                        cardBg: '#12141c',
+                        cardHover: '#1a1d28',
+                        accentBlue: '#3b82f6',
+                        accentPurple: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- SEO & Redes sociales -->
+    <meta name="description" content="Auralis es el reproductor de música local para Android de EstalingradoCorp: minimalista, sin anuncios y con modo oscuro. Descarga el APK gratis.">
+    <meta name="theme-color" content="#0b0c10">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Auralis - Tu música, organizada">
+    <meta property="og:description" content="Reproductor de música local para Android. Minimalista, sin anuncios y con modo oscuro. Descarga el APK gratis.">
+    <meta property="og:image" content="208046.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Auralis - Tu música, organizada">
+    <meta name="twitter:description" content="Reproductor de música local para Android. Minimalista, sin anuncios. Descarga el APK gratis.">
+    <meta name="twitter:image" content="208046.jpg">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <style>
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 6rem;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0c10;
+            color: #f3f4f6;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gradient-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            transition: all 0.3s ease;
+        }
+        .gradient-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.4);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0b0c10;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 9999px;
+        }
+    </style>
+</head>
+<body class="bg-[#0b0c10] text-gray-100 min-h-screen flex flex-col selection:bg-purple-500 selection:text-white">
+
+    <header class="sticky top-0 z-50 backdrop-blur-md bg-[#0b0c10]/80 border-b border-gray-800/60">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <img src="logo.png" alt="Logo de Auralis" class="w-10 h-10 rounded-xl object-contain shadow-lg shadow-purple-900/30">
+                <div>
+                    <span class="text-xl font-bold tracking-wider block text-white">AURALIS</span>
+                    <span class="text-xs text-purple-400 block -mt-1">EstalingradoCorp</span>
+                </div>
+            </div>
+            
+            <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-300">
+                <a href="#inicio" class="hover:text-purple-400 transition-colors">Inicio</a>
+                <a href="#caracteristicas" class="hover:text-purple-400 transition-colors">Características</a>
+                <a href="#demo" class="hover:text-purple-400 transition-colors">Ecualizador</a>
+                <a href="#descarga" class="hover:text-purple-400 transition-colors">Descargar</a>
+                <a href="#empresa" class="hover:text-purple-400 transition-colors">Empresa</a>
+            </nav>
+
+            <div class="flex items-center space-x-3">
+                <a href="#descarga" class="gradient-btn px-4 sm:px-5 py-2.5 rounded-full text-xs sm:text-sm font-semibold text-white shadow-md flex items-center space-x-2">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Descargar APK</span>
+                </a>
+                <button id="menu-btn" type="button" onclick="toggleMobileMenu()" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden w-10 h-10 rounded-xl bg-[#12141c] border border-gray-800 flex items-center justify-center text-gray-200 hover:text-white transition-colors">
+                    <i id="menu-icon" class="fa-solid fa-bars"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Menú móvil -->
+        <div id="mobile-menu" class="md:hidden hidden border-t border-gray-800/60 bg-[#0b0c10]/95 backdrop-blur-md">
+            <nav class="max-w-7xl mx-auto px-4 py-4 flex flex-col space-y-1 text-sm font-medium text-gray-300">
+                <a href="#inicio" onclick="closeMobileMenu()" class="px-4 py-3 rounded-xl hover:bg-[#12141c] hover:text-purple-400 transition-colors">Inicio</a>
+                <a href="#caracteristicas" onclick="closeMobileMenu()" class="px-4 py-3 rounded-xl hover:bg-[#12141c] hover:text-purple-400 transition-colors">Características</a>
+                <a href="#demo" onclick="closeMobileMenu()" class="px-4 py-3 rounded-xl hover:bg-[#12141c] hover:text-purple-400 transition-colors">Ecualizador</a>
+                <a href="#descarga" onclick="closeMobileMenu()" class="px-4 py-3 rounded-xl hover:bg-[#12141c] hover:text-purple-400 transition-colors">Descargar</a>
+                <a href="#empresa" onclick="closeMobileMenu()" class="px-4 py-3 rounded-xl hover:bg-[#12141c] hover:text-purple-400 transition-colors">Empresa</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow">
+        <section id="inicio" class="relative overflow-hidden pt-16 pb-24 md:pt-24 md:pb-32">
+            <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+            <div class="absolute bottom-10 right-10 w-80 h-80 bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"></div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                    
+                    <!-- Hero text -->
+                    <div class="lg:col-span-6 space-y-6 text-center lg:text-left">
+                        <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#12141c] border border-gray-800 text-purple-400 text-xs font-medium">
+                            <span class="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+                            <span>Versión 2.4.1 Estándar Disponible</span>
+                        </div>
+
+                        <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
+                            Tu música, <br><span class="gradient-text">organizada.</span>
+                        </h1>
+
+                        <p class="text-lg text-gray-400 max-w-xl mx-auto lg:mx-0">
+                            Descubre <strong class="text-white">Auralis</strong>, el reproductor de música local definitivo diseñado por EstalingradoCorp. Minimalista, fluido, sin anuncios y con una estética de modo oscuro impecable.
+                        </p>
+
+                        <div class="flex flex-col sm:flex-row items-center justify-center lg:justify-start space-y-4 sm:space-y-0 sm:space-x-4 pt-4">
+                            <a href="#descarga" class="w-full sm:w-auto gradient-btn px-8 py-4 rounded-2xl text-white font-semibold text-base shadow-xl flex items-center justify-center space-x-3">
+                                <i class="fa-brands fa-android text-xl"></i>
+                                <span>Descargar para Android</span>
+                            </a>
+                        </div>
+
+                        <div class="flex items-center justify-center lg:justify-start space-x-6 text-xs text-gray-500 pt-2">
+                            <span class="flex items-center space-x-1.5"><i class="fa-solid fa-shield-halved text-purple-400"></i> <span>100% Seguro y Libre de Anuncios</span></span>
+                            <span class="flex items-center space-x-1.5"><i class="fa-solid fa-bolt text-blue-400"></i> <span>Ultraligero</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Hero Visual / Real Screenshots -->
+                    <div class="lg:col-span-6 w-full">
+                        <div class="grid grid-cols-2 gap-3 sm:gap-6 w-full max-w-sm mx-auto">
+                            <div class="bg-gradient-to-tr from-blue-600 to-purple-600 rounded-2xl sm:rounded-[2rem] p-1 shadow-2xl shadow-purple-900/40">
+                                <div class="relative bg-[#0b0c10] rounded-xl sm:rounded-[1.75rem] overflow-hidden">
+                                    <div class="absolute top-1 sm:top-1.5 left-1/2 -translate-x-1/2 w-10 sm:w-16 h-2.5 sm:h-3.5 bg-black/70 rounded-full z-10"></div>
+                                    <img src="208046.jpg" alt="Pantalla de inicio de Auralis" loading="lazy" class="w-full h-auto block">
+                                </div>
+                            </div>
+                            <div class="bg-[#12141c] rounded-2xl sm:rounded-[2rem] p-1 border border-gray-800/80 shadow-2xl shadow-black/50">
+                                <div class="relative bg-[#0b0c10] rounded-xl sm:rounded-[1.75rem] overflow-hidden">
+                                    <div class="absolute top-1 sm:top-1.5 left-1/2 -translate-x-1/2 w-10 sm:w-16 h-2.5 sm:h-3.5 bg-black/70 rounded-full z-10"></div>
+                                    <img src="5073415400007077072.jpg" alt="Biblioteca de música en Auralis" loading="lazy" class="w-full h-auto block">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section id="caracteristicas" class="py-20 bg-[#12141c]/40 border-y border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                    <h2 class="text-xs font-bold tracking-widest uppercase text-purple-400">DISEÑADO PARA AMANTES DE LA MÚSICA</h2>
+                    <h3 class="text-3xl sm:text-4xl font-extrabold text-white">Todo lo que necesitas en tu reproductor</h3>
+                    <p class="text-gray-400">Auralis combina una estética minimalista en modo oscuro con un rendimiento excepcional para gestionar tu biblioteca local.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Feature 1 -->
+                    <div class="bg-[#12141c] p-8 rounded-3xl border border-gray-800 hover:border-purple-500/50 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-2xl bg-purple-600/10 text-purple-400 flex items-center justify-center text-xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-folder-tree"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white mb-3">Organización Inteligente</h4>
+                        <p class="text-gray-400 text-sm leading-relaxed">Clasifica automáticamente tus canciones, álbumes, artistas y listas de reproducción sin complicaciones.</p>
+                    </div>
+
+                    <!-- Feature 2 -->
+                    <div class="bg-[#12141c] p-8 rounded-3xl border border-gray-800 hover:border-blue-500/50 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-600/10 text-blue-400 flex items-center justify-center text-xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-compact-disc"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white mb-3">Reproductor Flotante</h4>
+                        <p class="text-gray-400 text-sm leading-relaxed">Navega por toda la app mientras controlas tu música con la barra flotante inferior y portada circular.</p>
+                    </div>
+
+                    <!-- Feature 3 -->
+                    <div class="bg-[#12141c] p-8 rounded-3xl border border-gray-800 hover:border-purple-500/50 transition-all duration-300 group">
+                        <div class="w-12 h-12 rounded-2xl bg-purple-600/10 text-purple-400 flex items-center justify-center text-xl mb-6 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-moon"></i>
+                        </div>
+                        <h4 class="text-xl font-bold text-white mb-3">Estética Dark Mode</h4>
+                        <p class="text-gray-400 text-sm leading-relaxed">Paleta de colores profunda con acentos degradados en azul y morado, ideal para proteger tu vista y lucir increíble.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="demo" class="py-20">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-3xl mx-auto space-y-4 mb-16">
+                    <h2 class="text-xs font-bold tracking-widest uppercase text-purple-400">SONIDO A TU MEDIDA</h2>
+                    <h3 class="text-3xl sm:text-4xl font-extrabold text-white">El ecualizador de Auralis</h3>
+                    <p class="text-gray-400">Personaliza el sonido con graves, agudos y presets integrados para que tu música suene exactamente como quieres.</p>
+                </div>
+
+                <div class="w-full max-w-sm mx-auto">
+                    <div class="bg-gradient-to-tr from-blue-600 to-purple-600 rounded-[2rem] sm:rounded-[2.75rem] p-1 shadow-2xl shadow-purple-900/40">
+                        <div class="relative bg-[#0b0c10] rounded-[1.75rem] sm:rounded-[2.5rem] overflow-hidden border border-gray-800/80">
+                            <div class="absolute top-1.5 sm:top-2.5 left-1/2 -translate-x-1/2 w-16 sm:w-24 h-3.5 sm:h-5 bg-black/70 rounded-full z-10"></div>
+                            <img src="ecualizador.jpg" alt="Ecualizador de Auralis" loading="lazy" class="w-full h-auto block">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="descarga" class="py-20 bg-[#12141c]/60 border-t border-gray-800/80">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                <div class="bg-gradient-to-b from-[#12141c] to-[#0b0c10] border border-gray-800 rounded-3xl p-8 sm:p-12 shadow-2xl relative overflow-hidden">
+                    <div class="absolute -top-24 -right-24 w-72 h-72 bg-purple-600/10 blur-[90px] rounded-full pointer-events-none"></div>
+                    
+                    <div class="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-tr from-blue-600 to-purple-600 flex items-center justify-center text-white text-3xl shadow-xl shadow-purple-900/40 mb-6">
+                        <i class="fa-solid fa-download"></i>
+                    </div>
+
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">Descarga Auralis</h2>
+                    <p class="text-gray-400 max-w-xl mx-auto mb-8 text-sm sm:text-base">
+                        Lleva tu música local al siguiente nivel con el reproductor oficial de EstalingradoCorp. Rápido, ligero y elegante.
+                    </p>
+
+                    <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                        <a id="apk-download" href="https://github.com/nicolabarranco27-a11y/AURALIS/releases/latest/download/Auralis.apk" onclick="showDownloadModal()" class="w-full sm:w-auto gradient-btn px-8 py-4 rounded-2xl text-white font-semibold text-base shadow-xl flex items-center justify-center space-x-3">
+                            <i class="fa-brands fa-android text-xl"></i>
+                            <span>Descargar APK</span>
+                        </a>
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-6">Requiere Android 8.0 o superior · APK 24,1 MB</p>
+
+                    <!-- Verificación del archivo -->
+                    <div class="mt-6 max-w-md mx-auto bg-[#0b0c10] border border-gray-800 rounded-2xl p-4 text-left space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Verificación del archivo</span>
+                            <span class="text-[11px] text-gray-500">SHA-256</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <code id="sha-hash" class="flex-1 text-[10px] text-gray-400 break-all font-mono">db630e834aea3fb9692e2dbeb3ca44fc1f9d2b75397a6ab95b132188e004bbf4</code>
+                            <button onclick="copyHash()" class="shrink-0 w-8 h-8 rounded-lg bg-[#12141c] border border-gray-800 flex items-center justify-center text-gray-300 hover:text-purple-400 transition-colors" aria-label="Copiar hash">
+                                <i id="copy-icon" class="fa-regular fa-copy text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pasos de instalación -->
+                    <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-left">
+                        <div class="bg-[#0b0c10] border border-gray-800 rounded-2xl p-5">
+                            <div class="w-8 h-8 rounded-full gradient-btn text-white text-xs font-bold flex items-center justify-center mb-3">1</div>
+                            <h4 class="text-sm font-bold text-white mb-1">Descarga el APK</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed">Toca el botón y espera a que se descargue el archivo en tu Android.</p>
+                        </div>
+                        <div class="bg-[#0b0c10] border border-gray-800 rounded-2xl p-5">
+                            <div class="w-8 h-8 rounded-full gradient-btn text-white text-xs font-bold flex items-center justify-center mb-3">2</div>
+                            <h4 class="text-sm font-bold text-white mb-1">Permite la instalación</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed">Si Android lo pide, activa "Instalar apps de esta fuente".</p>
+                        </div>
+                        <div class="bg-[#0b0c10] border border-gray-800 rounded-2xl p-5">
+                            <div class="w-8 h-8 rounded-full gradient-btn text-white text-xs font-bold flex items-center justify-center mb-3">3</div>
+                            <h4 class="text-sm font-bold text-white mb-1">Abre y disfruta</h4>
+                            <p class="text-xs text-gray-400 leading-relaxed">Abre Auralis, añade tu música y empieza a escuchar.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Empresa -->
+        <section id="empresa" class="py-20 bg-[#12141c]/40 border-t border-gray-800/50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center max-w-2xl mx-auto space-y-4 mb-12">
+                    <h2 class="text-xs font-bold tracking-widest uppercase text-purple-400">Empresa</h2>
+                    <h3 class="text-3xl sm:text-4xl font-extrabold text-white">EstalingradoCorp</h3>
+                    <p class="text-gray-400">La empresa detrás de Auralis. Descubre todos nuestros productos y proyectos.</p>
+                </div>
+
+                <div class="max-w-4xl mx-auto bg-gradient-to-tr from-[#12141c] to-[#0b0c10] border border-gray-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+                    <div class="absolute -bottom-20 -left-16 w-64 h-64 bg-blue-600/10 blur-[90px] rounded-full pointer-events-none"></div>
+                    <div class="flex flex-col sm:flex-row items-center gap-5 relative z-10">
+                        <img src="empresa-logo.jpg" alt="Logo de EstalingradoCorp" class="w-16 h-16 rounded-2xl object-contain shadow-lg shadow-purple-900/40 shrink-0 bg-white">
+                        <div>
+                            <h4 class="text-xl font-bold text-white">EstalingradoCorp</h4>
+                            <p class="text-sm text-gray-400 mt-1">Desarrollo de software y proyectos con identidad propia.</p>
+                        </div>
+                    </div>
+                    <a href="https://estalingradocorp.github.io/EstalingradoCorp/market.html" target="_blank" rel="noopener" class="relative z-10 shrink-0 w-full sm:w-auto gradient-btn px-6 py-3.5 rounded-2xl text-white font-semibold text-sm shadow-xl flex items-center justify-center space-x-2">
+                        <span>Visitar EstalingradoCorp</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download Modal Message Box -->
+        <div id="download-modal" onclick="if(event.target===this) closeModal()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+            <div class="bg-[#12141c] border border-gray-800 rounded-3xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center space-y-4">
+                <div class="w-12 h-12 mx-auto rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h3 class="text-lg font-bold text-white" id="modal-title">¡Descarga Iniciada!</h3>
+                <p class="text-xs text-gray-400" id="modal-desc">Gracias por descargar Auralis. Tu archivo comenzará a descargarse en unos segundos.</p>
+                <button onclick="closeModal()" class="w-full py-2.5 rounded-xl gradient-btn text-white text-xs font-semibold">Entendido</button>
+            </div>
+        </div>
+
+        <!-- Info / Legal Modal -->
+        <div id="info-modal" onclick="if(event.target===this) closeInfoModal()" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm hidden">
+            <div class="bg-[#12141c] border border-gray-800 rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl space-y-4">
+                <h3 class="text-lg font-bold text-white" id="info-title">Información</h3>
+                <p class="text-xs text-gray-400 leading-relaxed" id="info-body"></p>
+                <button onclick="closeInfoModal()" class="w-full py-2.5 rounded-xl gradient-btn text-white text-xs font-semibold">Entendido</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-[#0b0c10] border-t border-gray-800/80 py-12 text-gray-400 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            <div class="space-y-3 md:col-span-2">
+                <div class="flex items-center space-x-3">
+                    <img src="logo.png" alt="Logo de Auralis" class="w-8 h-8 rounded-lg object-contain">
+                    <span class="text-lg font-bold text-white tracking-wider">AURALIS</span>
+                </div>
+                <p class="text-gray-400 max-w-sm">
+                    El reproductor de música local definitivo desarrollado con pasión para ofrecer la mejor experiencia sonora y visual.
+                </p>
+                <a href="https://estalingradocorp.github.io/EstalingradoCorp/market.html" target="_blank" rel="noopener" class="inline-flex items-center space-x-1.5 text-purple-400 hover:text-purple-300 font-semibold pt-1 transition-colors">
+                    <span>EstalingradoCorp</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                </a>
+            </div>
+
+            <div>
+                <h4 class="text-white font-bold mb-3 uppercase tracking-wider text-[11px]">Enlaces Rápidos</h4>
+                <ul class="space-y-2">
+                    <li><a href="#inicio" class="hover:text-purple-400 transition-colors">Inicio</a></li>
+                    <li><a href="#caracteristicas" class="hover:text-purple-400 transition-colors">Características</a></li>
+                    <li><a href="#demo" class="hover:text-purple-400 transition-colors">Ecualizador</a></li>
+                    <li><a href="#descarga" class="hover:text-purple-400 transition-colors">Descarga</a></li>
+                    <li><a href="#empresa" class="hover:text-purple-400 transition-colors">Empresa</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 class="text-white font-bold mb-3 uppercase tracking-wider text-[11px]">Legal & Soporte</h4>
+                <ul class="space-y-2">
+                    <li><button onclick="openInfoModal('privacy')" class="hover:text-purple-400 transition-colors">Política de Privacidad</button></li>
+                    <li><button onclick="openInfoModal('terms')" class="hover:text-purple-400 transition-colors">Términos de Servicio</button></li>
+                    <!-- Reemplaza con tu correo de soporte real -->
+                    <li><a href="mailto:contacto@estalingradocorp.com" class="hover:text-purple-400 transition-colors">Soporte Técnico</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 border-t border-gray-800/60 flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <p>&copy; EstalingradoCorp. Todos los derechos reservados.</p>
+            <div class="flex items-center space-x-4 text-sm text-gray-400">
+                <span class="text-gray-500">Auralis v2.4.1 · Android</span>
+                <!-- Reemplaza con tu correo de soporte real -->
+                <a href="mailto:contacto@estalingradocorp.com" class="hover:text-purple-400 transition-colors" aria-label="Contacto"><i class="fa-solid fa-envelope"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function showDownloadModal() {
+            const modal = document.getElementById('download-modal');
+            document.getElementById('modal-title').innerText = '¡Descarga Iniciada!';
+            document.getElementById('modal-desc').innerText = 'Tu descarga de Auralis para Android ha comenzado. Si no inicia automáticamente, toca el botón otra vez.';
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('download-modal').classList.add('hidden');
+        }
+
+        // Menú móvil
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            const icon = document.getElementById('menu-icon');
+            const btn = document.getElementById('menu-btn');
+            const isHidden = menu.classList.toggle('hidden');
+            icon.className = isHidden ? 'fa-solid fa-bars' : 'fa-solid fa-xmark';
+            btn.setAttribute('aria-expanded', String(!isHidden));
+        }
+
+        function closeMobileMenu() {
+            document.getElementById('mobile-menu').classList.add('hidden');
+            document.getElementById('menu-icon').className = 'fa-solid fa-bars';
+            document.getElementById('menu-btn').setAttribute('aria-expanded', 'false');
+        }
+
+        // Copiar hash SHA-256
+        function copyHash() {
+            const hash = document.getElementById('sha-hash').innerText.trim();
+            navigator.clipboard.writeText(hash).then(() => {
+                const icon = document.getElementById('copy-icon');
+                icon.className = 'fa-solid fa-check text-xs text-green-400';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy text-xs'; }, 1500);
+            });
+        }
+
+        // Modal de información / legal
+        const INFO = {
+            privacy: {
+                title: 'Política de Privacidad',
+                body: 'Auralis es un reproductor de música local. No recopila, transmite ni comparte tus datos personales. Tu música, playlists y ajustes se guardan únicamente en tu dispositivo y nunca salen de él.'
+            },
+            terms: {
+                title: 'Términos de Servicio',
+                body: 'Auralis se ofrece "tal cual", sin garantías de ningún tipo. Es un software gratuito para uso personal. El usuario es el único responsable del uso que haga de la aplicación y de la música que reproduzca.'
+            }
+        };
+
+        function openInfoModal(key) {
+            const info = INFO[key] || INFO.privacy;
+            document.getElementById('info-title').innerText = info.title;
+            document.getElementById('info-body').innerText = info.body;
+            document.getElementById('info-modal').classList.remove('hidden');
+        }
+
+        function closeInfoModal() {
+            document.getElementById('info-modal').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
