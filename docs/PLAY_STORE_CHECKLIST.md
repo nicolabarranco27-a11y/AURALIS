@@ -2,14 +2,14 @@
 
 Pasos técnicos y administrativos obligatorios para publicar Auralis en la tienda oficial.
 
-**Estado del proyecto**: última release v0.1.0 (`59403f7`); consolidación de mejoras en el repositorio el 2026-10-12 (v0.2.0 pendiente de bump). La mayoría de requisitos de Store siguen abiertos.
+**Estado del proyecto**: última release v0.1.0 (`59403f7`); v0.2.0 preparada en el working tree (`versionName = "0.2.0"` / `versionCode = 2`, commit/tag pendientes). La mayoría de requisitos de Store siguen abiertos.
 
 ---
 
 ## 🛠 Preparación Técnica
 
 - [ ] **Nombre del Paquete**: Confirmar que `com.auralis.player` es definitivo.
-- [ ] **Versionado**: Definir `versionName` y `versionCode` para la release de Play Store. Actual: `0.1.0` / `1`.
+- [ ] **Versionado**: Definir `versionName` y `versionCode` para la release de Play Store. Actual: `0.2.0` / `2` (commit/tag pendientes).
 - [ ] **Icono Adaptativo**: Verificar resolución y comportamiento de las capas (foreground/background) en distintos dispositivos. *Foreground actualizado (2026-10-12) en todas las densidades; background `#000000`.*
 - [ ] **Ofuscación (R8)**: Probar el build de `release` para asegurar que las reglas de ProGuard no rompan la inyección de dependencias ni la serialización de Room. *`assembleRelease` verificado localmente en la consolidación 2026-10-12.*
 - [ ] **Permisos**: Justificar el uso de permisos de almacenamiento si se solicita revisión de Google.
@@ -67,7 +67,7 @@ Antes de subir a "Pruebas Internas", verificar:
 
 ## ⚠️ Bloqueos Conocidos
 
-- El proyecto se encuentra en **v0.1.0**; los cambios acumulados se consolidaron en el repositorio (2026-10-12) pero **todavía no se ha bumpeado la versión** (previsto v0.2.0).
+- El proyecto se encuentra en la base de **v0.1.0**; el contenido de **v0.2.0** está preparado en el working tree (2026-10-12) con versión `0.2.0`, pero el commit y el tag todavía están pendientes.
 - No se ha generado un build de release **firmado** todavía (el release actual se genera sin firmar).
 - No existe captura de pantalla profesional.
 - No existe Política de Privacidad publicada.

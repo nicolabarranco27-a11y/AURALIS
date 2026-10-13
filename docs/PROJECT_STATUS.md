@@ -1,11 +1,11 @@
 # Estado del Proyecto - Auralis
 
 **Fecha de última auditoría**: 2026-10-12
-**Última versión entregable (release)**: v0.1.0 (`59403f7`)
-**Versión en build.gradle.kts**: `versionName = "0.1.0"`, `versionCode = 1`
-**Working tree**: **limpio** (los cambios acumulados se consolidaron en el commit de consolidación del 2026-10-12).
+**Última versión entregable (release)**: v0.1.0 (`59403f7`) — **v0.2.0 preparada** (commit/tag pendientes, sin subir a `origin`)
+**Versión en build.gradle.kts**: `versionName = "0.2.0"`, `versionCode = 2`
+**Working tree**: **cambios listos para v0.2.0** (2026-10-12): escaneo automático por defecto + carpetas adicionales (SAF). Pendiente de commit/tag.
 
-> **Nota de versionado**: el commit de consolidación introduce funcionalidad y mejoras nuevas **sin** bumpear `versionName`. Estas mejoras constituyen el contenido previsto para la próxima **v0.2.0** (ver `docs/RELEASE_PLAN.md`), pero todavía no se ha creado el tag ni la release.
+> **Nota de versionado**: se bumpeó `versionName`/`versionCode` a `0.2.0`/`2`. El commit de consolidación y el tag `v0.2.0` están **pendientes** (por ahora no se toca `git`).
 
 ---
 
@@ -17,6 +17,8 @@ Además, cambios significativos que antes vivían en el working tree ya están c
 
 En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-app**, **versión visible en el Drawer**, **solicitud runtime de `POST_NOTIFICATIONS`** (Android 13+), **tests instrumentados** y un **workflow de CI con matriz de emuladores**.
 
+> **v0.2.0 (2026-10-12)**: **escaneo automático por defecto + carpetas adicionales**. Auralis detecta la música del dispositivo al abrir; el usuario puede **sumar** carpetas con el explorador del sistema (SAF) desde *Canciones* o el estado vacío de Inicio, y gestionarlas también desde Ajustes. Ver la sección *Cambios de v0.2.0* más abajo.
+
 ---
 
 ## ✅ Funcionalidades Implementadas (Consolidadas en el repositorio)
@@ -27,6 +29,7 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 - Repeat: OFF / ONE / ALL
 - `MediaSessionService` con foreground service
 - **Ecualizador real (AudioFX, 5 bandas)** integrado en `PlaybackService`, con presets (Normal / Bass Boost / Rock / Pop) y persistencia (`EqualizerPreferences`)
+- **Temporizador de apagado (Sleep Timer)** real en `PlayerViewModel` (`startSleepTimer`/`cancelSleepTimer`), con diálogo de presets y pausa automática al agotarse
 - Cola dinámica (swipe-to-queue) con overlay de feedback
 
 ### Biblioteca
@@ -49,7 +52,7 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 - Drawer lateral con secciones: Inicio, Canciones, Álbumes, Artistas, Playlists, Favoritos, Ajustes
 - Drawer con **item activo resaltado** (pill animado)
 - Pantalla de Ajustes real (`SettingsScreen`) con **selección de tema persistida** (claro / oscuro / sistema) vía `ThemeController`
-- `Drawer` muestra la **versión de la app** (`v0.1.0`) junto a EstalingradoCorp
+- `Drawer` muestra la **versión de la app** (`v0.2.0`) junto a EstalingradoCorp
 - Diálogo "Detalles de la Pista" en `PlayerScreen`
 
 ### Tema y Sistema de Diseño
@@ -67,7 +70,7 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 - ProGuard/R8 en release
 
 ### Calidad
-- Tests unitarios en `app/src/test/` para datos y dominio
+- Tests unitarios en `app/src/test/` para datos y dominio (incluye `MusicFolderPreferencesTest`)
 - **Tests instrumentados** en `app/src/androidTest/` (`LibraryDaoInstrumentedTest`, `AppLaunchSmokeTest`)
 - **CI con matriz de emuladores** (`.github/workflows/android-ci.yml`)
 - `assembleDebug` + `assembleRelease` + `testDebugUnitTest` + `lintDebug` + `assembleDebugAndroidTest` verificados localmente (**BUILD SUCCESSFUL**)
@@ -76,10 +79,10 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 
 ## ⚠️ Funcionalidades Parciales / En Desarrollo
 
-- **Temporizador (Sleep Timer)**: No implementado. El ítem de menú muestra `Toast: "Próximamente"`.
 - **Metadatos técnicos** (bitrate, sample rate, formato): El diálogo de detalles muestra título/artista/álbum/duración/origen, pero no los campos técnicos.
-- **DataStore**: Las preferencias (tema, ecualizador) aún usan `SharedPreferences`; la migración a DataStore está prevista en el Milestone 1.
+- **DataStore**: Las preferencias (tema, ecualizador, carpetas) aún usan `SharedPreferences`; la migración a DataStore está prevista en el Milestone 1.
 - **Multi-idioma**: Solo español.
+- **Robustez ante crashes**: no hay captura local de crashes; se diagnosticará con `logcat` cuando se reproduzca un cierre inesperado.
 
 ---
 
@@ -88,13 +91,28 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 ### Resueltos en esta consolidación
 - **Hilo principal en `HomeViewModel.onSongClick`**: generación de UUIDs de `QueueItem` migrada a `Dispatchers.Default`.
 - **Cover vacío en AlbumDetail**: se prioriza el primer `coverReference` no vacío.
-- **Escaneo no detectaba música descargada [causa raíz]**: `MediaStore.Audio.Media.DATA` eliminado de la proyección (bloqueada en Android 11+ con `targetSdk >= 30`) y lecturas defensivas (`safeGetString`); además se quitó el filtro `IS_MUSIC != 0`.
+- **Escaneo no detectaba música descargada [causa raíz]**: `MediaStore.Audio.Media.DATA` eliminado de la proyección (bloqueada en Android 11+ con `targetSdk >= 30`) y lecturas defensivas (`safeGetString`). El escaneo por defecto cubre toda la música (`IS_MUSIC`); el audio con `IS_MUSIC = 0` se incorpora sumando su carpeta manualmente.
+- **Audio que no es música mezclado con las canciones**: nuevo `AudioPathFilter` descarta mensajería, grabaciones y sonidos del sistema.
+- **Estado vacío en Inicio**: tras un escaneo sin resultados se muestra la guía ("Agregar carpetas") en lugar de la vista principal vacía.
 - **Compilación de `PlaybackService`**: corregido el uso inexistente de `session.commands` → `DEFAULT_SESSION_COMMANDS`, `SessionError.ERROR_NOT_SUPPORTED`, `@OptIn`.
 - **`mergeReleaseResources`**: renombrado `estalingradocorp_logo.png` → `.jpg` (era un JPEG mal nombrado).
 - **Sin controles de reproducción en Android 13+**: se solicita `POST_NOTIFICATIONS` en runtime.
 
 ### Sin resolución
-- Ningún bug crítico conocido.
+- **Cierre inesperado puntual (una vez)**: observado en un dispositivo físico, no reproducible de forma determinista. Sin traza (`logcat`) no se pudo identificar la causa; pendiente de capturar en la próxima reproducción.
+
+---
+
+## 🧩 Cambios de v0.2.0 (2026-10-12)
+
+**Escaneo automático + carpetas adicionales**:
+- Dominio: `LibraryFolderRepository` (`observeSelectedFolders`/`selectedFolders`/`addFolder`/`removeFolder`).
+- Data: `MusicFolderPreferences` (SharedPreferences `auralis_library_prefs`), `DefaultLibraryFolderRepository`; `MediaStoreSource.getAudioFiles(folderTreeUris)` escanea por defecto toda la música (`IS_MUSIC`) y **suma** el audio de las carpetas elegidas (tree URI de SAF, `DocumentsContract.getTreeDocumentId`) comprobando pertenencia por `VOLUME_NAME` + `RELATIVE_PATH` (API 29+, volumen SAF `primary` → `external_primary`) o por prefijo de `DATA` (API < 29), aunque `IS_MUSIC = 0`.
+- Filtro de audio no-música: `AudioPathFilter` descarta mensajería (WhatsApp/Telegram/Signal), grabaciones de voz/llamadas y sonidos del sistema siempre, incluso dentro de una carpeta elegida.
+- Escaneo: `DefaultLibraryScanner` inyecta `MusicFolderPreferences` y **escanea siempre** (aunque no haya carpetas); el escaneo por defecto ya cubre la música del dispositivo.
+- UI: explorador del sistema (`ActivityResultContracts.OpenDocumentTree`) + hoja `MusicFoldersSheet` (`feature/folders/FolderSelection.kt`); acción de carpeta en *Canciones*, CTA en el estado vacío de Inicio y sección **Biblioteca** en `SettingsScreen`. La app **siempre arranca en `Routes.HOME`** (sin onboarding). El estado vacío de Inicio también aparece cuando un escaneo termina sin resultados.
+- Tests: `LibraryScannerTest` ajustado a la nueva firma + caso "escanea por defecto aunque no haya carpetas"; `MusicFolderPreferencesTest` reescrito (tree URIs); `FolderLabelTest` (nuevo, `folderDisplayName`); `AudioPathFilterTest` (exclusión de audio no-música); `AppLaunchSmokeTest` sin seed de onboarding.
+- Verificado localmente: `compileDebugKotlin`, `testDebugUnitTest`, `lintDebug`, `assembleDebug`, `assembleRelease` y `assembleDebugAndroidTest` **OK**. Re-verificado tras los fixes de esta sesión: `assembleDebug` + `testDebugUnitTest` + `lintDebug` **BUILD SUCCESSFUL**.
 
 ---
 
@@ -102,11 +120,11 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 
 Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 
-1. **Bumpear a v0.2.0** (versionName/versionCode) y crear el tag de release.
-2. **Compatibilidad multi-dispositivo**: el usuario probará en equipos físicos y guiará ajustes de optimización.
-2. **Implementar Sleep Timer** real (reemplazar el `Toast: "Próximamente"`).
-2. **Migrar a DataStore** para configuraciones de tema y audio.
-3. **Extracción de metadatos técnicos** (bitrate, sample rate, formato) en el diálogo de detalles.
+1. **Crear el tag/release v0.2.0** y subir a `origin` (por ahora sin `git`, pendiente de confirmación).
+2. **Compatibilidad multi-dispositivo**: pruebas en equipos físicos y ajustes de optimización.
+3. **Migrar a DataStore** para configuraciones de tema, audio y carpetas.
+4. **Extracción de metadatos técnicos** (bitrate, sample rate, formato) en el diálogo de detalles.
+5. **Diagnóstico del cierre puntual**: capturar `logcat` si se reproduce.
 
 ---
 
@@ -118,7 +136,7 @@ Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 - **CI nuevo**: `.github/workflows/android-ci.yml` agrega un job de unit+lint y un job de **tests instrumentados en matriz de emuladores** (API 26 / 29 / 33 / 36). Aún **no verificado en el remoto** (recién consolidado).
 - **Tests instrumentados locales**: requieren un dispositivo/emulador conectado; en este entorno no había ninguno disponible (`adb devices` vacío). Se puede usar `tools/run-instrumented-tests.ps1`.
 - **Lint**: sin errores críticos.
-- **Tests unitarios**: 13 archivos en `app/src/test/`; **tests instrumentados** en `app/src/androidTest/` (2 archivos). No se ha medido cobertura en este snapshot.
+- **Tests unitarios**: 14 archivos en `app/src/test/`; **tests instrumentados** en `app/src/androidTest/` (2 archivos). No se ha medido cobertura en este snapshot.
 
 ---
 

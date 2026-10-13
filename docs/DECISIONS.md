@@ -118,3 +118,21 @@ Este documento registra las decisiones técnicas clave tomadas durante el desarr
   - Proveer `tools/run-instrumented-tests.ps1` para ejecución local en un dispositivo/emulador conectado.
 - **Razón**: Detecta regresiones dependientes de la plataforma (permisos, MediaStore, Room) y valida la compatibilidad mínima (`minSdk 26`) hasta la última API (`targetSdk 36`).
 - **Nota**: En el entorno de desarrollo no había dispositivo/emulador disponible; los tests quedan listos para ejecutarse localmente y en CI.
+
+---
+
+## ADR 012: Escaneo automático por defecto + carpetas adicionales de música
+- **Fecha**: 2026-10-12
+- **Estado**: Aceptado (v0.2.0)
+- **Contexto**: El escaneo inicial mezclaba todo el audio del dispositivo (música, descargas, notas de voz, WhatsApp...). Restringir el escaneo **solo** a carpetas elegidas dejaba la biblioteca vacía en el primer arranque y exigía configuración previa; se quería que Auralis organizara la música del usuario sin intervención y, a la vez, permitir sumar ubicaciones concretas.
+- **Decisión**:
+  - **Sin onboarding**: la app siempre arranca en `Routes.HOME`; la gestión de carpetas es una acción dentro de la app (vista **Canciones** y Ajustes).
+  - **Escaneo por defecto**: `MediaStoreSource.getAudioFiles(folderTreeUris)` escanea toda la música del dispositivo (`IS_MUSIC != 0`) sin necesidad de configuración.
+  - **Carpetas que se suman**: el usuario elige carpetas con el **explorador de documentos de Android** (`ActivityResultContracts.OpenDocumentTree`, SAF); su audio se **añade** a la biblioteca aunque el sistema marque `IS_MUSIC = 0` (p. ej. descargas). Una hoja inferior (`MusicFoldersSheet`) lista y permite quitar las elegidas.
+  - Persistir cada carpeta como **tree URI** en `MusicFolderPreferences` (`SharedPreferences`, `auralis_library_prefs`) expuesta como `StateFlow`; `LibraryFolderRepository` expone `addFolder`/`removeFolder`.
+  - La pertenencia a una carpeta se comprueba por `VOLUME_NAME` + `RELATIVE_PATH` (API 29+) o por prefijo de `DATA` (API < 29). `DefaultLibraryScanner` **escanea siempre**; `AudioPathFilter` descarta siempre el audio que no es música.
+- **Alternativas descartadas**:
+  - Onboarding obligatorio con lista in-app de carpetas detectadas: bloqueaba el primer arranque y alejaba la selección del momento en que el usuario la necesita.
+  - Indexar con `DocumentFile`/SAF en lugar de MediaStore: perdería `mediaStoreId`, carátula y la organización ya provista por MediaStore.
+  - Escanear **solo** las carpetas elegidas: dejaba la biblioteca vacía en el primer arranque y exigía configuración previa.
+- **Razón**: mantiene a MediaStore (y Room) como fuente de verdad del catálogo, no requiere migración de Room y combina un escaneo automático listo desde el primer arranque con control explícito para incluir ubicaciones adicionales.

@@ -2,13 +2,13 @@
 
 Auralis es un reproductor de música moderno, elegante y sin anuncios para Android. Diseñado con una arquitectura limpia, sigue las mejores prácticas de desarrollo Android y ofrece una experiencia de usuario fluida con Material Design 3.
 
-> **Última release**: v0.1.0 (`59403f7`). Un conjunto de mejoras (ecualizador, búsqueda, Ajustes, nuevo logo/ícono, tests instrumentados, CI) está **consolidado en el repositorio** (2026-10-12) y se agrupará como v0.2.0 al bumpear la versión. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
+> **Última release**: v0.1.0 (`59403f7`). El contenido de **v0.2.0** (escaneo por defecto + carpetas, ecualizador, búsqueda, Ajustes, nuevo logo/ícono, tests instrumentados, CI) está preparado en el working tree (2026-10-12); `versionName = "0.2.0"` / `versionCode = 2`. Commit y tag **pendientes**. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
 
 ## 📱 Capturas de Pantalla
 
 *Próximamente*
 
-## ✨ Características Principales (v0.1.0)
+## ✨ Características Principales (v0.2.0)
 
 ### Reproducción de Audio
 - **Motor ExoPlayer (Media3)** - Reproducción robusta y eficiente
@@ -19,7 +19,8 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - **Control de velocidad** - Seek preciso con slider interactivo en `PlayerScreen`
 
 ### Organización de Biblioteca
-- **Escaneo automático** - Detección de archivos de audio via MediaStore
+- **Escaneo automático** - Auralis detecta y organiza la música del dispositivo vía MediaStore, sin configuración previa
+- **Carpetas adicionales** - Suma carpetas específicas con el explorador del sistema (SAF), desde *Canciones* o Ajustes; su audio se añade a la biblioteca
 - **WorkManager** - Escaneo en segundo plano programado
 - **Metadatos completos** - Título, artista, álbum, duración, género, carátula
 - **Vistas jerárquicas**:
@@ -46,7 +47,13 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - **KSP** - Procesamiento de símbolos Kotlin para Room/Hilt
 - **ProGuard/R8** - Optimización y ofuscación en release
 
-### Novedades consolidadas (2026-10-12 → hacia v0.2.0)
+### Escaneo de biblioteca (v0.2.0, 2026-10-12)
+- **Escaneo automático por defecto**: la app detecta y organiza la música del dispositivo sin configuración previa
+- **Carpetas adicionales (SAF)**: el usuario puede sumar una o más carpetas con `OpenDocumentTree`; su audio se añade a la biblioteca y puede gestionarse desde *Canciones* o Ajustes
+- **Filtro de audio que no es música**: se descartan mensajería (WhatsApp/Telegram/Signal), grabaciones y sonidos del sistema
+- **Inicio sin bloqueo**: la app siempre abre en Inicio; no hay onboarding obligatorio
+
+### Otras novedades de v0.2.0 (consolidadas 2026-10-12)
 - Ecualizador de 5 bandas con AudioFX real y persistencia
 - Búsqueda inteligente con Autocomplete
 - Toggle de Favoritos en filas y vista dedicada de Favoritos
@@ -55,7 +62,7 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - Carrusel "Acceso Rápido" y filtros por chips en Home
 - Detalles de Pista
 - Nuevo **logo e ícono de app**
-- **Versión visible en el Drawer** (`v0.1.0`)
+- **Versión visible en el Drawer** (`v0.2.0`)
 - **Permiso runtime `POST_NOTIFICATIONS`** (Android 13+)
 - **Tests instrumentados** y **CI con matriz de emuladores** (API 26/29/33/36)
 - Refinamiento visual (Material Icons Rounded, vinilo, glow, visualizador)
@@ -80,8 +87,8 @@ Consultá `docs/FEATURES.md` y `docs/RELEASE_PLAN.md` para el detalle completo.
 | **Min SDK** | Android 8.0 (API 26) | |
 | **Target SDK** | API 36 | |
 | **Compile SDK** | API 37 | |
-| **VersionName** | 0.1.0 | |
-| **VersionCode** | 1 | |
+| **VersionName** | 0.2.0 | |
+| **VersionCode** | 2 | |
 
 ## 🏗 Estructura del Proyecto
 

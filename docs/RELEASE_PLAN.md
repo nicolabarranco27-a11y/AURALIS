@@ -1,7 +1,7 @@
 # Plan de Lanzamiento (Release Plan) - v1.0.0
 
 **Última versión entregable (release)**: v0.1.0 (`59403f7`)
-**Repositorio**: los cambios acumulados se **consolidaron** en el commit del 2026-10-12. `versionName` sigue en `0.1.0`; el **bump a v0.2.0** (y el tag) está pendiente.
+**Repositorio**: contenido de **v0.2.0** preparado en el working tree (2026-10-12); `versionName = "0.2.0"` / `versionCode = 2`. Commit y tag `v0.2.0` **pendientes** (por ahora no se toca `git`).
 
 > El plan hacia v1.0.0 se mantiene, pero los hitos se han ajustado al estado real del repositorio.
 
@@ -9,7 +9,7 @@
 
 ## 🧱 Bloque previo al Milestone 1: Consolidación (v0.2.0)
 
-Estos cambios están **implementados y consolidados en el repositorio** (2026-10-12). Solo resta **bumpear `versionName`/`versionCode` a `0.2.0`** y crear el tag antes de iniciar el Milestone 1.
+Estos cambios están **implementados**. Solo resta **crear el commit y el tag `v0.2.0`** (el bump de versión ya está hecho) antes de iniciar el Milestone 1.
 
 ### Funcionalidad
 - [x] Búsqueda con Autocomplete (Home)
@@ -21,6 +21,7 @@ Estos cambios están **implementados y consolidados en el repositorio** (2026-10
 - [x] Drawer con item seleccionado
 - [x] Carrusel "Acceso Rápido" en Home
 - [x] Filtros por chips en Home
+- [x] Escaneo automático de la música del dispositivo + carpetas adicionales (explorador del sistema / SAF, gestión desde Canciones y Ajustes)
 
 ### UI/UX
 - [x] `AuralisArtwork` con fallback `MusicNote`
@@ -48,11 +49,11 @@ Estos cambios están **implementados y consolidados en el repositorio** (2026-10
 ## 🏁 Hitos Posteriores
 
 ### Milestone 1: Consolidación de Features Core (v0.5.0)
-- [ ] Implementar la pantalla dedicada de "Favoritos" (ruta en Drawer + listado).
-- [ ] Migrar configuraciones (tema, ecualizador, ajustes) a Jetpack DataStore.
+- [x] Pantalla dedicada de "Favoritos" (ruta en Drawer + listado). *(hecho)*
+- [x] Implementar el temporizador de apagado automático (Sleep Timer) real. *(hecho en `PlayerViewModel`)*
+- [x] Persistencia de preferencia de tema (claro/oscuro/seguir sistema). *(hecho vía `ThemeController`)*
+- [ ] Migrar configuraciones (tema, ecualizador, ajustes, carpetas) a Jetpack DataStore.
 - [ ] Mejora de extracción de metadatos (formato, bitrate, sample rate) en `TrackDetailsDialog`.
-- [ ] Implementar el temporizador de apagado automático (Sleep Timer) real.
-- [ ] Persistencia de preferencia de tema (claro/oscuro/seguir sistema).
 
 ### Milestone 2: Pulido y Localización (v0.8.0)
 - [ ] Soporte multi-idioma (Español e Inglés).

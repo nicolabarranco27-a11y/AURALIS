@@ -11,6 +11,7 @@ import com.auralis.player.data.mediastore.AudioDiscoverySource
 import com.auralis.player.data.mediastore.MediaStoreAudio
 import com.auralis.player.data.metadata.MetadataExtractor
 import com.auralis.player.data.metadata.TrackMetadata
+import com.auralis.player.data.repository.MusicFolderPreferences
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -29,8 +30,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class LibraryScannerTest {
 
+    private val TREE_MUSIC =
+        "content://com.android.externalstorage.documents/tree/primary%3AMusic"
+
+
     private lateinit var db: AppDatabase
     private lateinit var monitor: LibraryScanMonitor
+    private lateinit var folderPreferences: MusicFolderPreferences
     private lateinit var scanner: DefaultLibraryScanner
 
     private var discovered: List<MediaStoreAudio> = emptyList()
@@ -38,7 +44,7 @@ class LibraryScannerTest {
     private var extractorCalls = 0
 
     private val discoverySource = object : AudioDiscoverySource {
-        override suspend fun getAudioFiles(): List<MediaStoreAudio> = discovered
+        override suspend fun getAudioFiles(folderTreeUris: Set<String>): List<MediaStoreAudio> = discovered
     }
 
     private val metadataExtractor = object : MetadataExtractor {
@@ -57,12 +63,15 @@ class LibraryScannerTest {
             AppDatabase::class.java,
         ).allowMainThreadQueries().build()
         monitor = LibraryScanMonitor()
+        folderPreferences = MusicFolderPreferences(ApplicationProvider.getApplicationContext())
+        folderPreferences.setSelectedFolders(setOf(TREE_MUSIC))
         scanner = DefaultLibraryScanner(
             context = ApplicationProvider.getApplicationContext(),
             discoverySource = discoverySource,
             libraryDao = db.libraryDao(),
             metadataExtractor = metadataExtractor,
             scanMonitor = monitor,
+            folderPreferences = folderPreferences,
             ioDispatcher = kotlinx.coroutines.Dispatchers.Unconfined,
         )
     }
@@ -233,5 +242,17 @@ class LibraryScannerTest {
         val status = monitor.status.value
         assertTrue(status is LibraryScanMonitor.Status.Finished)
         assertTrue((status as LibraryScanMonitor.Status.Finished).outcome is ScanOutcome.Success)
+    }
+
+    @Test
+    fun `escanea por defecto aunque no haya carpetas seleccionadas`() = runTest {
+        folderPreferences.setSelectedFolders(emptySet())
+        discovered = listOf(audio(1, "Alpha"), audio(2, "Beta"))
+
+        val outcome = scanner.sync() as ScanOutcome.Success
+
+        assertEquals(2, outcome.scanned)
+        assertEquals(2, outcome.added)
+        assertEquals(listOf("1", "2"), dao().getSongs().map { it.id })
     }
 }

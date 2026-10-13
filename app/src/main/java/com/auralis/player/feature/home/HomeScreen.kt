@@ -58,6 +58,8 @@ import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 import com.auralis.player.domain.model.Song
+import com.auralis.player.feature.folders.MusicFoldersSheet
+import com.auralis.player.feature.folders.rememberFolderPickerLauncher
 
 @Composable
 fun HomeScreen(
@@ -69,6 +71,9 @@ fun HomeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
+
+    var showFolderSheet by remember { mutableStateOf(false) }
+    val openFolderPicker = rememberFolderPickerLauncher { uri -> viewModel.addFolder(uri) }
     
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -154,26 +159,32 @@ fun HomeScreen(
                             spacing = spacing
                         )
                     }
-                    state.songs.isEmpty() && state.scanStatus is ScanDisplayStatus.Idle -> {
-                        FullScreenState(
-                            title = "Sin música",
-                            description = "No hemos encontrado archivos de audio en tu dispositivo.",
-                            buttonText = "Escanear ahora",
-                            onButtonClick = { viewModel.requestScan() },
-                            colors = colors,
-                            spacing = spacing
-                        )
-                    }
                     state.songs.isEmpty() && state.scanStatus is ScanDisplayStatus.Running -> {
                         LoadingState(colors = colors, message = "Sincronizando...")
                     }
-                    state.scanStatus is ScanDisplayStatus.Failed -> {
+                    state.songs.isEmpty() && state.scanStatus is ScanDisplayStatus.Failed -> {
                         FullScreenState(
                             title = "Error de escaneo",
                             description = (state.scanStatus as ScanDisplayStatus.Failed).message,
                             buttonText = "Reintentar",
                             onButtonClick = { viewModel.requestScan() },
                             iconText = "!",
+                            colors = colors,
+                            spacing = spacing
+                        )
+                    }
+                    state.songs.isEmpty() -> {
+                        FullScreenState(
+                            title = "Sin música",
+                            description = if (state.selectedFolders.isEmpty()) {
+                                "No encontramos música en tu dispositivo. Puedes agregar carpetas manualmente."
+                            } else {
+                                "No encontramos audio en las carpetas elegidas."
+                            },
+                            buttonText = "Agregar carpetas",
+                            onButtonClick = { showFolderSheet = true },
+                            secondaryButtonText = "Escanear ahora",
+                            onSecondaryButtonClick = { viewModel.requestScan() },
                             colors = colors,
                             spacing = spacing
                         )
@@ -208,6 +219,15 @@ fun HomeScreen(
                 }
             }
         }
+    }
+
+    if (showFolderSheet) {
+        MusicFoldersSheet(
+            folders = state.selectedFolders,
+            onAddFolder = { openFolderPicker() },
+            onRemoveFolder = { viewModel.removeFolder(it) },
+            onDismiss = { showFolderSheet = false }
+        )
     }
 }
 
@@ -908,7 +928,9 @@ private fun FullScreenState(
     onButtonClick: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing,
-    iconText: String = "●"
+    iconText: String = "●",
+    secondaryButtonText: String? = null,
+    onSecondaryButtonClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -952,6 +974,16 @@ private fun FullScreenState(
                 text = buttonText.uppercase(),
                 style = AppType.label.copy(letterSpacing = 2.sp)
             )
+        }
+        if (secondaryButtonText != null && onSecondaryButtonClick != null) {
+            Spacer(modifier = Modifier.height(spacing.s))
+            TextButton(onClick = onSecondaryButtonClick) {
+                Text(
+                    text = secondaryButtonText,
+                    style = AppType.label,
+                    color = colors.textSecondary
+                )
+            }
         }
     }
 }

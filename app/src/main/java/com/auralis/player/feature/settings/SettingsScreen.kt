@@ -19,11 +19,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.common.format.folderDisplayName
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 import com.auralis.player.core.ui.theme.ThemeMode
+import com.auralis.player.feature.folders.MusicFoldersSheet
+import com.auralis.player.feature.folders.rememberFolderPickerLauncher
 
 @Composable
 fun SettingsScreen(
@@ -34,6 +37,11 @@ fun SettingsScreen(
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val selectedFolders by viewModel.selectedFolders.collectAsStateWithLifecycle(
+        initialValue = emptySet()
+    )
+    var showFolderSheet by remember { mutableStateOf(false) }
+    val openFolderPicker = rememberFolderPickerLauncher { uri -> viewModel.addFolder(uri) }
 
     Column(
         modifier = modifier
@@ -56,21 +64,31 @@ fun SettingsScreen(
                     tint = colors.textPrimary
                 )
             }
-            Spacer(modifier = Modifier.width(spacing.s))
-            Text(
-                text = "AJUSTES",
-                style = AppType.display.copy(fontSize = 24.sp),
-                color = colors.textPrimary,
-                fontWeight = FontWeight.Light,
-                letterSpacing = 4.sp
-            )
         }
+
+        Spacer(modifier = Modifier.height(spacing.s))
+
+        // Section: Biblioteca
+        Text(
+            text = "BIBLIOTECA",
+            style = AppType.label.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary,
+            letterSpacing = 2.sp,
+            modifier = Modifier.padding(bottom = spacing.m)
+        )
+
+        FolderSelectionCard(
+            selectedFolders = selectedFolders,
+            onManageFoldersClick = { showFolderSheet = true },
+            colors = colors,
+            spacing = spacing
+        )
 
         Spacer(modifier = Modifier.height(spacing.xl))
 
-        // Section: Personalización
+        // Section: Apariencia
         Text(
-            text = "PERSONALIZACIÓN",
+            text = "APARIENCIA",
             style = AppType.label.copy(fontWeight = FontWeight.Bold),
             color = colors.textPrimary,
             letterSpacing = 2.sp,
@@ -79,10 +97,70 @@ fun SettingsScreen(
 
         ThemeSelectionCard(
             selected = themeMode,
-            onSelect = viewModel::setThemeMode,
+            onSelect = { viewModel.setThemeMode(it) },
             colors = colors,
             spacing = spacing
         )
+    }
+
+    if (showFolderSheet) {
+        MusicFoldersSheet(
+            folders = selectedFolders,
+            onAddFolder = { openFolderPicker() },
+            onRemoveFolder = { viewModel.removeFolder(it) },
+            onDismiss = { showFolderSheet = false }
+        )
+    }
+}
+
+@Composable
+private fun FolderSelectionCard(
+    selectedFolders: Set<String>,
+    onManageFoldersClick: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    val folderNames = selectedFolders
+        .map { folderDisplayName(it) }
+        .sorted()
+        .joinToString(", ")
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = ReproductorThemeTokens.shapes.medium,
+        color = colors.surfaceRaised,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(spacing.m)) {
+            Text(
+                text = "Carpetas de música",
+                style = AppType.body.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Spacer(modifier = Modifier.height(spacing.xs))
+            Text(
+                text = folderNames.ifEmpty { "Escaneo automático activo. Sin carpetas adicionales." },
+                style = AppType.label.copy(fontSize = 12.sp, letterSpacing = 0.5.sp),
+                color = colors.textSecondary
+            )
+            Spacer(modifier = Modifier.height(spacing.m))
+            Surface(
+                onClick = onManageFoldersClick,
+                shape = RoundedCornerShape(percent = 50),
+                color = colors.accent
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Gestionar carpetas",
+                        style = AppType.label.copy(fontWeight = FontWeight.Bold, fontSize = 12.sp),
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -105,23 +183,19 @@ private fun ThemeSelectionCard(
         color = colors.surfaceRaised,
         tonalElevation = 2.dp
     ) {
-        Column(
-            modifier = Modifier.padding(spacing.m)
-        ) {
+        Column(modifier = Modifier.padding(spacing.m)) {
             Text(
-                text = "Modo de tema",
+                text = "Tema",
                 style = AppType.body.copy(fontWeight = FontWeight.Bold),
                 color = colors.textPrimary
             )
             Spacer(modifier = Modifier.height(spacing.xs))
             Text(
-                text = "Elige la apariencia visual de la aplicación",
-                style = AppType.label.copy(fontSize = 11.sp),
+                text = "Actualmente la app usa solo el modo oscuro.",
+                style = AppType.label.copy(fontSize = 12.sp, letterSpacing = 0.5.sp),
                 color = colors.textSecondary
             )
-
             Spacer(modifier = Modifier.height(spacing.m))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.s)
@@ -133,9 +207,7 @@ private fun ThemeSelectionCard(
                             .weight(1f)
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(percent = 50))
-                            .background(
-                                if (isSelected) colors.accent else colors.surface
-                            )
+                            .background(if (isSelected) colors.accent else colors.surface)
                             .clickable { onSelect(mode) }
                             .padding(vertical = spacing.s),
                         contentAlignment = Alignment.Center

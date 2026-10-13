@@ -3,8 +3,10 @@
 Este documento detalla las capacidades técnicas y de usuario actualmente presentes en el código de Auralis.
 
 > **Convención**:
-> - ✅ **Implementado**: presente y consolidado en el repositorio (última release: `0.1.0` / `59403f7`; consolidación 2026-10-12).
+> - ✅ **Implementado**: presente en el código (versión actual en `build.gradle.kts`: `0.2.0` / `2`, commit/tag pendientes).
 > - ⬜ **Pendiente de implementación**: aún no existe en código.
+>
+> **v0.2.0 (2026-10-12)**: escaneo automático por defecto + carpetas adicionales de música (explorador del sistema / SAF). Commit/tag pendientes (no se toca `git` aún).
 
 ---
 
@@ -34,7 +36,7 @@ Este documento detalla las capacidades técnicas y de usuario actualmente presen
 | Iconos Material Rounded | ✅ | `Icons.Rounded.*` / `Icons.AutoMirrored.Rounded.*` |
 | `AuralisArtwork` con fallback `MusicNote` | ✅ | Icono en color de acento |
 | Logo/ícono de la app actualizado | ✅ | Launcher adaptativo + logo circular in-app |
-| Versión visible en el Drawer | ✅ | `v0.1.0` junto a EstalingradoCorp |
+| Versión visible en el Drawer | ✅ | `v0.2.0` junto a EstalingradoCorp |
 
 ---
 
@@ -63,7 +65,11 @@ Este documento detalla las capacidades técnicas y de usuario actualmente presen
 
 | Funcionalidad | Estado | Detalle |
 |---|---|---|
-| Escaneo MediaStore + `WorkManager` | ✅ | Proyección compatible (sin `DATA`), sin filtro `IS_MUSIC` |
+| Escaneo MediaStore + `WorkManager` | ✅ | Escaneo automático de toda la música del dispositivo (`IS_MUSIC`); proyección compatible (sin `DATA`) |
+| Carpetas adicionales de música (SAF) | ✅ | Explorador del sistema (`OpenDocumentTree`); añadir/quitar carpetas que se **suman** a la biblioteca |
+| Escaneo por defecto + carpetas que se suman | ✅ | `MediaStoreSource` escanea por defecto toda la música y añade el audio de las carpetas elegidas (`VOLUME_NAME` + `RELATIVE_PATH` en API 29+, o `DATA` en API < 29) aunque `IS_MUSIC = 0` |
+| Exclusión de audio que no es música | ✅ | `AudioPathFilter` descarta mensajería (WhatsApp/Telegram/Signal), grabaciones y sonidos del sistema |
+| Gestión de carpetas desde Canciones y Ajustes | ✅ | Hoja inferior `MusicFoldersSheet`; CTA en el estado vacío de Inicio |
 | Escaneo de arranque si biblioteca vacía | ✅ | `HomeViewModel.onScreenShown` |
 | Playlists (crear/renombrar/eliminar/añadir/quitar) | ✅ | `PlaylistRepository` |
 | Vista Canciones | ✅ | |
@@ -104,7 +110,7 @@ Este documento detalla las capacidades técnicas y de usuario actualmente presen
 
 | Funcionalidad | Estado | Detalle |
 |---|---|---|
-| Tests unitarios (`app/src/test/`) | ✅ | Datos, dominio y UI (`HomeViewModelTest`) |
+| Tests unitarios (`app/src/test/`) | ✅ | Datos, dominio y UI (`HomeViewModelTest`, `MusicFolderPreferencesTest`) |
 | Tests instrumentados (`app/src/androidTest/`) | ✅ | `LibraryDaoInstrumentedTest`, `AppLaunchSmokeTest` |
 | CI unit + lint | ✅ | Workflow GitHub Actions |
 | CI matriz de emuladores (API 26/29/33/36) | ✅ | `.github/workflows/android-ci.yml` (no verificado en remoto aún) |

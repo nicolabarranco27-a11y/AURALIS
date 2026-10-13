@@ -11,6 +11,7 @@ import com.auralis.player.data.database.dao.LibraryDao
 import com.auralis.player.data.database.mapper.toEntity
 import com.auralis.player.data.mediastore.AudioDiscoverySource
 import com.auralis.player.data.metadata.MetadataExtractor
+import com.auralis.player.data.repository.MusicFolderPreferences
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,6 +43,7 @@ class DefaultLibraryScanner @Inject constructor(
     private val libraryDao: LibraryDao,
     private val metadataExtractor: MetadataExtractor,
     private val scanMonitor: LibraryScanMonitor,
+    private val folderPreferences: MusicFolderPreferences,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : LibraryScanner {
 
@@ -66,7 +68,10 @@ class DefaultLibraryScanner @Inject constructor(
             return ScanOutcome.PermissionDenied
         }
 
-        val discovered = discoverySource.getAudioFiles()
+        // Escaneo por defecto de toda la musica del dispositivo; las carpetas
+        // elegidas por el usuario se suman a esa base (ver MediaStoreSource).
+        val selectedFolders = folderPreferences.selectedFolders()
+        val discovered = discoverySource.getAudioFiles(selectedFolders)
         val existingById = libraryDao.getAllIncludingUnavailable()
             .associateBy { it.mediaStoreId }
 

@@ -8,7 +8,6 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.rule.GrantPermissionRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -25,7 +24,9 @@ class AppLaunchSmokeTest {
     private val notificationPermissionRule: TestRule =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             // Evita que el dialogo del sistema tape la UI en Android 13+.
-            GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
+            androidx.test.rule.GrantPermissionRule.grant(
+                Manifest.permission.POST_NOTIFICATIONS
+            )
         } else {
             TestRule { base, _ -> base }
         }

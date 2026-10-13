@@ -10,6 +10,7 @@ import com.auralis.player.data.scanner.ScanOutcome
 import com.auralis.player.data.scanner.hasAudioAccess
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.repository.FavoritesRepository
+import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,7 @@ data class HomeUiState(
     val hasPermission: Boolean = false,
     val scanStatus: ScanDisplayStatus = ScanDisplayStatus.Idle,
     val songs: List<Song> = emptyList(),
+    val selectedFolders: Set<String> = emptySet(),
     val favoriteIds: Set<com.auralis.player.domain.model.SongId> = emptySet(),
     val playbackState: com.auralis.player.domain.model.PlaybackState = com.auralis.player.domain.model.PlaybackState.IDLE,
     val isSearchActive: Boolean = false,
@@ -50,6 +52,13 @@ data class HomeUiState(
     val songCount: Int get() = songs.size
 }
 
+private data class CoreData(
+    val songs: List<Song>,
+    val status: LibraryScanMonitor.Status,
+    val playback: com.auralis.player.domain.model.PlaybackState,
+    val selectedFolders: Set<String>,
+)
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -58,6 +67,7 @@ class HomeViewModel @Inject constructor(
     private val scanScheduler: LibraryScanScheduler,
     private val scanMonitor: LibraryScanMonitor,
     private val favoritesRepository: FavoritesRepository,
+    private val folderRepository: LibraryFolderRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(hasPermission = context.hasAudioAccess()))
@@ -91,8 +101,9 @@ class HomeViewModel @Inject constructor(
                 libraryRepository.observeSongs(),
                 scanMonitor.status,
                 playbackRepository.observePlaybackState(),
-            ) { songs, status, playback ->
-                Triple(songs, status, playback)
+                folderRepository.observeSelectedFolders(),
+            ) { songs, status, playback, folders ->
+                CoreData(songs, status, playback, folders)
             }
 
             combine(
@@ -102,13 +113,13 @@ class HomeViewModel @Inject constructor(
                 _searchResults,
                 favoritesRepository.observeFavorites()
             ) { core, active, query, results, favorites ->
-                val (songs, status, playback) = core
                 HomeUiState(
                     hasPermission = context.hasAudioAccess(),
-                    scanStatus = status.toDisplayStatus(),
-                    songs = songs,
+                    scanStatus = core.status.toDisplayStatus(),
+                    songs = core.songs,
+                    selectedFolders = core.selectedFolders,
                     favoriteIds = favorites,
-                    playbackState = playback,
+                    playbackState = core.playback,
                     isSearchActive = active,
                     searchQuery = query,
                     searchResults = results
@@ -206,6 +217,20 @@ class HomeViewModel @Inject constructor(
         // Escaneo automatico de arranque: solo si ya hay permiso y la
         // biblioteca esta vacia, para no re-escaneos innecesarios.
         if (context.hasAudioAccess() && _uiState.value.songs.isEmpty()) {
+            scanScheduler.requestScan()
+        }
+    }
+
+    fun addFolder(treeUri: String) {
+        viewModelScope.launch {
+            folderRepository.addFolder(treeUri)
+            scanScheduler.requestScan()
+        }
+    }
+
+    fun removeFolder(treeUri: String) {
+        viewModelScope.launch {
+            folderRepository.removeFolder(treeUri)
             scanScheduler.requestScan()
         }
     }

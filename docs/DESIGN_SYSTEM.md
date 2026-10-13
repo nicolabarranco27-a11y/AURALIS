@@ -2,7 +2,7 @@
 
 Auralis utiliza una personalización profunda de Material Design 3 para crear una experiencia visual coherente y "Premium".
 
-> **Estado**: Este documento describe los tokens y componentes actualmente presentes en el repositorio (consolidados el 2026-10-12 sobre la base de v0.1.0).
+> **Estado**: Este documento describe los tokens y componentes actualmente presentes en el repositorio (2026-10-12; versión actual `0.2.0`, commit/tag pendientes).
 
 ## 🎨 Paleta de Colores (`Color.kt`)
 La identidad se basa en un tema oscuro neutro con acentos tecnológicos vibrantes.
@@ -62,7 +62,7 @@ Usa `LinearProgressIndicator` pasivo de 3dp (sin interactividad). El seek se rea
 
 ## 🎯 Drawer
 
-Cada item se resalta con `secondaryContainer` + texto en negrita + color de acento cuando coincide con la ruta actual (vía `currentBackStackEntryAsState`), dentro de un `RoundedCornerShape(percent = 50)`. Además, la sección inferior muestra la **versión de la app** (`v0.1.0`) junto a EstalingradoCorp.
+Cada item se resalta con `secondaryContainer` + texto en negrita + color de acento cuando coincide con la ruta actual (vía `currentBackStackEntryAsState`), dentro de un `RoundedCornerShape(percent = 50)`. Además, la sección inferior muestra la **versión de la app** (`v0.2.0`) junto a EstalingradoCorp.
 
 ## 📚 Iconografía
 

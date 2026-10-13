@@ -8,9 +8,11 @@ import com.auralis.player.data.repository.InMemoryPlaybackRepository
 import com.auralis.player.data.repository.RoomFavoritesRepository
 import com.auralis.player.data.repository.RoomLibraryRepository
 import com.auralis.player.data.repository.RoomPlaylistRepository
+import com.auralis.player.data.repository.DefaultLibraryFolderRepository
 import com.auralis.player.data.scanner.DefaultLibraryScanner
 import com.auralis.player.data.scanner.LibraryScanner
 import com.auralis.player.domain.repository.FavoritesRepository
+import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import com.auralis.player.domain.repository.PlaylistRepository
@@ -27,6 +29,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindLibraryRepository(impl: RoomLibraryRepository): LibraryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLibraryFolderRepository(
+        impl: DefaultLibraryFolderRepository,
+    ): LibraryFolderRepository
 
     @Binds
     @Singleton

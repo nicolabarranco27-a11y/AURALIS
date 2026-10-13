@@ -2,10 +2,12 @@ package com.auralis.player.feature.songs
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.auralis.player.data.scanner.LibraryScanScheduler
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.repository.FavoritesRepository
+import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,7 +23,8 @@ import javax.inject.Inject
 data class SongsUiState(
     val songs: List<Song> = emptyList(),
     val playbackState: PlaybackState = PlaybackState.IDLE,
-    val isLoading: Boolean = true,
+    val selectedFolders: Set<String> = emptySet(),
+    val isLoading: Boolean = true
 )
 
 @HiltViewModel
@@ -29,6 +32,8 @@ class SongsViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val playbackRepository: PlaybackRepository,
     private val favoritesRepository: FavoritesRepository,
+    private val folderRepository: LibraryFolderRepository,
+    private val scanScheduler: LibraryScanScheduler,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SongsUiState())
@@ -39,10 +44,12 @@ class SongsViewModel @Inject constructor(
             combine(
                 libraryRepository.observeSongs(),
                 playbackRepository.observePlaybackState(),
-            ) { songs, playback ->
+                folderRepository.observeSelectedFolders()
+            ) { songs, playback, folders ->
                 SongsUiState(
                     songs = songs,
                     playbackState = playback,
+                    selectedFolders = folders,
                     isLoading = false
                 )
             }.collect { newState -> _uiState.update { newState } }
@@ -85,6 +92,20 @@ class SongsViewModel @Inject constructor(
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
             favoritesRepository.toggleFavorite(song.id)
+        }
+    }
+
+    fun addFolder(treeUri: String) {
+        viewModelScope.launch {
+            folderRepository.addFolder(treeUri)
+            scanScheduler.requestScan()
+        }
+    }
+
+    fun removeFolder(treeUri: String) {
+        viewModelScope.launch {
+            folderRepository.removeFolder(treeUri)
+            scanScheduler.requestScan()
         }
     }
 }

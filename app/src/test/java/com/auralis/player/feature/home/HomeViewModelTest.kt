@@ -219,6 +219,7 @@ class HomeViewModelTest {
         val repository = FakeLibraryRepository()
         val playback = FakePlaybackRepository()
         val favorites = FakeFavoritesRepository()
+        val folders = FakeLibraryFolderRepository()
 
         val viewModel = HomeViewModel(
             context,
@@ -227,6 +228,7 @@ class HomeViewModelTest {
             scheduler,
             monitor,
             favorites,
+            folders,
         )
 
         assertFalse(viewModel.uiState.first().hasPermission)
@@ -244,9 +246,18 @@ class HomeViewModelTest {
         scanScheduler: LibraryScanScheduler = FakeScanScheduler(context),
         scanMonitor: LibraryScanMonitor = FakeScanMonitor(),
         favoritesRepository: com.auralis.player.domain.repository.FavoritesRepository = FakeFavoritesRepository(),
+        folderRepository: com.auralis.player.domain.repository.LibraryFolderRepository = FakeLibraryFolderRepository(),
     ): HomeViewModel {
         grantAudioPermission(hasPermission)
-        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor, favoritesRepository)
+        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor, favoritesRepository, folderRepository)
+    }
+
+    private class FakeLibraryFolderRepository : com.auralis.player.domain.repository.LibraryFolderRepository {
+        private val folders = MutableStateFlow<Set<String>>(emptySet())
+        override fun observeSelectedFolders(): kotlinx.coroutines.flow.Flow<Set<String>> = folders.asStateFlow()
+        override suspend fun selectedFolders(): Set<String> = folders.value
+        override suspend fun addFolder(treeUri: String) { folders.value = folders.value + treeUri }
+        override suspend fun removeFolder(treeUri: String) { folders.value = folders.value - treeUri }
     }
 
     private class FakeFavoritesRepository : com.auralis.player.domain.repository.FavoritesRepository {

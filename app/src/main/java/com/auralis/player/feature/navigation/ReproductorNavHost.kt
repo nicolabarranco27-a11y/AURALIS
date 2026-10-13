@@ -177,7 +177,9 @@ fun ReproductorNavHost() {
                 AddToPlaylistScreen(onBackClick = { navController.popBackStack() })
             }
             composable(Routes.SETTINGS) {
-                SettingsScreen(onBackClick = { navController.popBackStack() })
+                SettingsScreen(
+                    onBackClick = { navController.popBackStack() },
+                )
             }
             composable(Routes.PLAYER) {
                 PlayerScreen(
