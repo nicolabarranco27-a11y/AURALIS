@@ -75,7 +75,7 @@ class MusicServiceConnection @Inject constructor(
                 if (_playbackState.value.isPlaying) {
                     updatePlaybackState()
                 }
-                delay(1000)
+                delay(500)
             }
         }
     }

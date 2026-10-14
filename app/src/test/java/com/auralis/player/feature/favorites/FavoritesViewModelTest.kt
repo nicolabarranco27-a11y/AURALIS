@@ -98,6 +98,8 @@ class FavoritesViewModelTest {
         override fun observeAlbumsByArtist(artistName: String): Flow<List<Album>> = emptyFlow()
         override fun observeLibraryChanges(): Flow<Unit> = emptyFlow()
         override suspend fun searchSongs(query: String): List<Song> = emptyList()
+        override fun observeHiddenSongs(): Flow<List<Song>> = emptyFlow()
+        override suspend fun setSongHidden(songId: SongId, hidden: Boolean) {}
     }
 
     private class FakeFavoritesRepository(initial: Set<SongId>) : FavoritesRepository {

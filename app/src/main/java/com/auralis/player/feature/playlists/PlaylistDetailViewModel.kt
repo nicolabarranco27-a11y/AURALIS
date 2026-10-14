@@ -10,6 +10,7 @@ import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
 import com.auralis.player.domain.repository.FavoritesRepository
+import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import com.auralis.player.domain.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +36,7 @@ class PlaylistDetailViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val playbackRepository: PlaybackRepository,
     private val favoritesRepository: FavoritesRepository,
+    private val libraryRepository: LibraryRepository,
 ) : ViewModel() {
 
     private val playlistIdString: String = savedStateHandle.get<String>("playlistId").orEmpty()
@@ -71,6 +73,26 @@ class PlaylistDetailViewModel @Inject constructor(
         playbackRepository.setQueue(queueItems, index)
     }
 
+    fun playAll(shuffle: Boolean = false) {
+        val currentSongs = uiState.value.songs
+        if (currentSongs.isEmpty()) return
+        val queueItems = currentSongs.map {
+            QueueItem(UUID.randomUUID().toString(), it)
+        }
+        playbackRepository.setQueue(queueItems, 0)
+        playbackRepository.setShuffleEnabled(shuffle)
+    }
+
+    fun addAllToQueue() {
+        uiState.value.songs.forEach { playbackRepository.addSongToQueue(it) }
+    }
+
+    fun moveSong(songId: SongId, newPosition: Int) {
+        viewModelScope.launch {
+            playlistRepository.moveSong(playlistId, songId, newPosition)
+        }
+    }
+
     fun togglePlayPause() {
         if (uiState.value.playbackState.isPlaying) {
             playbackRepository.pause()
@@ -88,6 +110,15 @@ class PlaylistDetailViewModel @Inject constructor(
     fun renamePlaylist(newName: String) {
         viewModelScope.launch {
             playlistRepository.renamePlaylist(playlistId, newName)
+            val updated = playlistRepository.getPlaylist(playlistId)
+            _uiState.update { it.copy(playlist = updated) }
+        }
+    }
+
+    fun updateDetails(name: String, description: String?) {
+        viewModelScope.launch {
+            playlistRepository.renamePlaylist(playlistId, name)
+            playlistRepository.updateDescription(playlistId, description)
             val updated = playlistRepository.getPlaylist(playlistId)
             _uiState.update { it.copy(playlist = updated) }
         }
@@ -118,6 +149,12 @@ class PlaylistDetailViewModel @Inject constructor(
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
             favoritesRepository.toggleFavorite(song.id)
+        }
+    }
+
+    fun hideSong(song: Song) {
+        viewModelScope.launch {
+            libraryRepository.setSongHidden(song.id, true)
         }
     }
 }

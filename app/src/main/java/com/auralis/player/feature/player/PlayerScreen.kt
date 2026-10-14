@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +19,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.*
@@ -25,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,6 +51,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.core.common.format.formatDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.VinylAura
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 import com.auralis.player.data.repository.EqualizerPreferences
@@ -58,6 +69,7 @@ fun PlayerScreen(
 ) {
     val state by viewModel.playbackState.collectAsStateWithLifecycle()
     val sleepTimer by viewModel.sleepTimer.collectAsStateWithLifecycle()
+    val auraColor by viewModel.artworkAura.collectAsStateWithLifecycle()
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
     val gradient = ReproductorThemeTokens.primaryGradient
@@ -135,7 +147,7 @@ fun PlayerScreen(
                 )
                 AudioEqualizerVisualizer(
                     isPlaying = state.isPlaying,
-                    color = colors.accent,
+                    color = auraColor,
                     barMaxHeightDp = 12,
                     barWidthDp = 3
                 )
@@ -233,101 +245,113 @@ fun PlayerScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Cover Art Area (Estilo Vinilo Digital)
-        BoxWithConstraints(
+        // Cover Art Area (Estilo Vinilo Digital) con aura derivada de la portada
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .aspectRatio(1f)
-                .shadow(elevation = 16.dp, shape = CircleShape)
-                .clip(CircleShape)
-                .background(colors.surfaceRaised)
-                .border(
-                    border = BorderStroke(2.dp, colors.outline.copy(alpha = 0.3f)),
-                    shape = CircleShape
-                ),
+                .fillMaxWidth(0.98f)
+                .aspectRatio(1f),
             contentAlignment = Alignment.Center
         ) {
-            val widthPx = with(density) { maxWidth.toPx() }
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(state.currentSong?.id) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { 
-                                draggedSongId = state.currentSong?.id?.value
-                            },
-                            onHorizontalDrag = { _, dragAmount ->
-                                scope.launch {
-                                    swipeOffsetX.snapTo(swipeOffsetX.value + dragAmount * 0.8f)
-                                }
-                            },
-                            onDragEnd = {
-                                scope.launch {
-                                    if (swipeOffsetX.value > 150f) {
-                                        // Anterior
-                                        isNext = false
-                                        // Animamos hacia afuera y lanzamos el comando
-                                        swipeOffsetX.animateTo(widthPx, tween(250, easing = FastOutLinearInEasing))
-                                        viewModel.skipPrevious()
-                                        recenterAfterSkippedSwipe()
-                                    } else if (swipeOffsetX.value < -150f) {
-                                        // Siguiente
-                                        isNext = true
-                                        // Animamos hacia afuera y lanzamos el comando
-                                        swipeOffsetX.animateTo(-widthPx, tween(250, easing = FastOutLinearInEasing))
-                                        viewModel.skipNext()
-                                        recenterAfterSkippedSwipe()
-                                    } else {
-                                        // Regreso suave al centro si no se superó el umbral
-                                        swipeOffsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
-                                        draggedSongId = null
-                                    }
-                                }
-                            },
-                            onDragCancel = { 
-                                scope.launch { 
-                                    swipeOffsetX.animateTo(0f)
-                                    draggedSongId = null
-                                } 
-                            }
-                        )
-                    },
-                contentAlignment = Alignment.Center
+            VinylAura(
+                isPlaying = state.isPlaying,
+                auraColor = auraColor,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                AnimatedContent(
-                    targetState = state.currentSong,
-                    transitionSpec = {
-                        // Determinamos si el cambio es manual analizando si hay un drag activo con offset significativo
-                        val wasManual = draggedSongId != null && Math.abs(swipeOffsetX.value) > 100f
-                        
-                        if (isNext) {
-                            (slideInHorizontally { width -> width } + fadeIn(tween(400))).togetherWith(
-                                if (wasManual) fadeOut(tween(300)) // La salida manual ya se hizo/está haciendo vía graphicsLayer
-                                else slideOutHorizontally { width -> -width } + fadeOut(tween(300))
-                            )
-                        } else {
-                            (slideInHorizontally { width -> -width } + fadeIn(tween(400))).togetherWith(
-                                if (wasManual) fadeOut(tween(300))
-                                else slideOutHorizontally { width -> width } + fadeOut(tween(300))
-                            )
-                        }
-                    },
-                    label = "ArtworkTransition"
-                ) { song ->
-                    AuralisArtwork(
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize(0.72f)
+                        .shadow(elevation = 16.dp, shape = CircleShape)
+                        .clip(CircleShape)
+                        .background(colors.surfaceRaised)
+                        .border(
+                            border = BorderStroke(2.dp, colors.outline.copy(alpha = 0.3f)),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val widthPx = with(density) { maxWidth.toPx() }
+
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .clip(CircleShape)
-                            .graphicsLayer {
-                                // El desplazamiento manual SOLO se aplica a la canción que causó el drag.
-                                // La nueva canción (que tiene un ID diferente) entrará limpia en x=0.
-                                if (song?.id?.value == draggedSongId) {
-                                    translationX = swipeOffsetX.value
+                            .pointerInput(state.currentSong?.id) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = {
+                                        draggedSongId = state.currentSong?.id?.value
+                                    },
+                                    onHorizontalDrag = { _, dragAmount ->
+                                        scope.launch {
+                                            swipeOffsetX.snapTo(swipeOffsetX.value + dragAmount * 0.8f)
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        scope.launch {
+                                            if (swipeOffsetX.value > 150f) {
+                                                // Anterior
+                                                isNext = false
+                                                // Animamos hacia afuera y lanzamos el comando
+                                                swipeOffsetX.animateTo(widthPx, tween(250, easing = FastOutLinearInEasing))
+                                                viewModel.skipPrevious()
+                                                recenterAfterSkippedSwipe()
+                                            } else if (swipeOffsetX.value < -150f) {
+                                                // Siguiente
+                                                isNext = true
+                                                // Animamos hacia afuera y lanzamos el comando
+                                                swipeOffsetX.animateTo(-widthPx, tween(250, easing = FastOutLinearInEasing))
+                                                viewModel.skipNext()
+                                                recenterAfterSkippedSwipe()
+                                            } else {
+                                                // Regreso suave al centro si no se superó el umbral
+                                                swipeOffsetX.animateTo(0f, spring(dampingRatio = Spring.DampingRatioLowBouncy))
+                                                draggedSongId = null
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        scope.launch {
+                                            swipeOffsetX.animateTo(0f)
+                                            draggedSongId = null
+                                        }
+                                    }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AnimatedContent(
+                            targetState = state.currentSong,
+                            transitionSpec = {
+                                // Determinamos si el cambio es manual analizando si hay un drag activo con offset significativo
+                                val wasManual = draggedSongId != null && Math.abs(swipeOffsetX.value) > 100f
+
+                                if (isNext) {
+                                    (slideInHorizontally { width -> width } + fadeIn(tween(400))).togetherWith(
+                                        if (wasManual) fadeOut(tween(300)) // La salida manual ya se hizo/está haciendo vía graphicsLayer
+                                        else slideOutHorizontally { width -> -width } + fadeOut(tween(300))
+                                    )
+                                } else {
+                                    (slideInHorizontally { width -> -width } + fadeIn(tween(400))).togetherWith(
+                                        if (wasManual) fadeOut(tween(300))
+                                        else slideOutHorizontally { width -> width } + fadeOut(tween(300))
+                                    )
                                 }
                             },
-                        artworkReference = song?.coverReference
-                    )
+                            label = "ArtworkTransition"
+                        ) { song ->
+                            AuralisArtwork(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .graphicsLayer {
+                                        // El desplazamiento manual SOLO se aplica a la canción que causó el drag.
+                                        // La nueva canción (que tiene un ID diferente) entrará limpia en x=0.
+                                        if (song?.id?.value == draggedSongId) {
+                                            translationX = swipeOffsetX.value
+                                        }
+                                    },
+                                artworkReference = song?.coverReference
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -366,6 +390,11 @@ fun PlayerScreen(
         val duration = state.durationMs ?: 0L
 
         Column(modifier = Modifier.fillMaxWidth()) {
+            val thumbScale by animateFloatAsState(
+                targetValue = if (isDragging) 1.3f else 1f,
+                animationSpec = tween(150),
+                label = "seekThumbScale"
+            )
             Slider(
                 value = if (isDragging) sliderValue else state.positionMs.toFloat(),
                 onValueChange = {
@@ -378,11 +407,45 @@ fun PlayerScreen(
                 },
                 valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
                 colors = SliderDefaults.colors(
-                    thumbColor = colors.textPrimary,
-                    activeTrackColor = colors.accent,
-                    inactiveTrackColor = colors.outline.copy(alpha = 0.15f)
+                    thumbColor = Color.Transparent,
+                    activeTrackColor = Color.Transparent,
+                    inactiveTrackColor = Color.Transparent,
                 ),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                track = { sliderState ->
+                    val range = sliderState.valueRange
+                    val fraction = if (range.endInclusive > range.start) {
+                        ((sliderState.value - range.start) / (range.endInclusive - range.start))
+                            .coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(colors.outline.copy(alpha = 0.15f)),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .fillMaxHeight()
+                                .clip(CircleShape)
+                                .background(gradient),
+                        )
+                    }
+                },
+                thumb = {
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .scale(thumbScale)
+                            .shadow(elevation = 6.dp, shape = CircleShape)
+                            .clip(CircleShape)
+                            .background(auraColor),
+                    )
+                }
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -407,49 +470,60 @@ fun PlayerScreen(
 
         // Primary Controls
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.s),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
+            PlayerControlButton(
+                icon = Icons.Rounded.Shuffle,
+                contentDescription = if (state.shuffleEnabled) "Desactivar aleatorio" else "Activar aleatorio",
+                active = state.shuffleEnabled,
                 onClick = { viewModel.toggleShuffle() },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Text(
-                    text = "↝",
-                    style = AppType.title.copy(fontSize = 24.sp),
-                    color = if (state.shuffleEnabled) colors.accent else colors.textSecondary
-                )
-            }
+                colors = colors,
+            )
 
-            IconButton(
-                onClick = { 
+            PlayerControlButton(
+                icon = Icons.Rounded.SkipPrevious,
+                contentDescription = "Anterior",
+                active = false,
+                onClick = {
                     isNext = false
                     // Marcamos como no manual para que use la animación por defecto de slideOut
                     draggedSongId = null
-                    viewModel.skipPrevious() 
+                    viewModel.skipPrevious()
                 },
-                modifier = Modifier.size(56.dp)
-            ) {
-                Text("«", style = AppType.display.copy(fontSize = 32.sp), color = colors.textPrimary)
-            }
+                colors = colors,
+                sizeDp = 56,
+            )
 
             Box(
                 contentAlignment = Alignment.Center,
-                modifier = Modifier.size(120.dp)
+                modifier = Modifier.size(96.dp)
             ) {
-                // Halo / Glow Effect (Difuminado suave sin recortes)
+                val playPulse by rememberInfiniteTransition(label = "playHalo").animateFloat(
+                    initialValue = 0.7f,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2_200, easing = FastOutSlowInEasing),
+                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+                    ),
+                    label = "playHaloAlpha",
+                )
+
+                // Halo difuminado suave (gradiente radial, sin recortes duros)
                 Box(
                     modifier = Modifier
-                        .size(116.dp)
+                        .size(96.dp)
                         .graphicsLayer {
-                            alpha = if (state.isPlaying) 0.8f else 0.25f
+                            alpha = if (state.isPlaying) playPulse else 0.2f
                         }
                         .background(
                             brush = Brush.radialGradient(
                                 colors = listOf(
-                                    colors.accent.copy(alpha = 0.45f),
-                                    colors.accent.copy(alpha = 0.15f),
+                                    auraColor.copy(alpha = 0.45f),
+                                    auraColor.copy(alpha = 0.12f),
                                     Color.Transparent
                                 )
                             ),
@@ -460,7 +534,7 @@ fun PlayerScreen(
                 Surface(
                     onClick = { viewModel.togglePlayPause() },
                     shape = CircleShape,
-                    modifier = Modifier.size(80.dp),
+                    modifier = Modifier.size(72.dp),
                     color = Color.Transparent
                 ) {
                     Box(
@@ -469,41 +543,41 @@ fun PlayerScreen(
                             .background(gradient),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = if (state.isPlaying) "‖" else "▶",
-                            style = AppType.display.copy(fontSize = 32.sp),
-                            color = Color.White
+                        Icon(
+                            imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pausa" else "Reproducir",
+                            tint = Color.White,
+                            modifier = Modifier.size(34.dp)
                         )
                     }
                 }
             }
 
-            IconButton(
-                onClick = { 
+            PlayerControlButton(
+                icon = Icons.Rounded.SkipNext,
+                contentDescription = "Siguiente",
+                active = false,
+                onClick = {
                     isNext = true
                     // Marcamos como no manual
                     draggedSongId = null
-                    viewModel.skipNext() 
+                    viewModel.skipNext()
                 },
-                modifier = Modifier.size(56.dp)
-            ) {
-                Text("»", style = AppType.display.copy(fontSize = 32.sp), color = colors.textPrimary)
-            }
+                colors = colors,
+                sizeDp = 56,
+            )
 
-            IconButton(
+            PlayerControlButton(
+                icon = if (state.repeatMode == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                contentDescription = when (state.repeatMode) {
+                    RepeatMode.ONE -> "Repetir una canción"
+                    RepeatMode.ALL -> "Repetir todas"
+                    else -> "Repetición desactivada"
+                },
+                active = state.repeatMode != RepeatMode.OFF,
                 onClick = { viewModel.cycleRepeatMode() },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Text(
-                    text = when (state.repeatMode) {
-                        RepeatMode.ONE -> "⟳₁"
-                        RepeatMode.ALL -> "⟳"
-                        else -> "→"
-                    },
-                    style = AppType.title.copy(fontSize = 24.sp),
-                    color = if (state.repeatMode != RepeatMode.OFF) colors.accent else colors.textSecondary
-                )
-            }
+                colors = colors,
+            )
         }
         
         Spacer(modifier = Modifier.height(spacing.xl).navigationBarsPadding())
@@ -899,6 +973,40 @@ private fun AudioEqualizerVisualizer(
                     .background(color)
             )
         }
+    }
+}
+
+@Composable
+private fun PlayerControlButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    active: Boolean,
+    onClick: () -> Unit,
+    colors: com.auralis.player.core.ui.theme.AppColors,
+    sizeDp: Int = 48,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.9f else 1f,
+        animationSpec = tween(120),
+        label = "controlButtonScale"
+    )
+    IconButton(
+        onClick = onClick,
+        interactionSource = interaction,
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .scale(scale)
+            .clip(CircleShape)
+            .background(if (active) colors.accent.copy(alpha = 0.14f) else Color.Transparent),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (active) colors.accent else colors.textSecondary,
+            modifier = Modifier.size((sizeDp * 0.46f).dp),
+        )
     }
 }
 

@@ -53,6 +53,32 @@ class MappersTest {
         assertEquals(epoch, song.dateAdded)
         assertEquals(7L, song.playCount)
         assertEquals(true, song.isFavorite)
+        assertEquals(false, song.isHidden)
+    }
+
+    @Test
+    fun `isHidden se conserva entre domain y entity`() {
+        val hidden = fullEntity().copy(isHidden = true)
+
+        assertEquals(true, hidden.toDomain().isHidden)
+
+        val domain = Song(
+            id = SongId("h-1"),
+            sourceUri = "content://media/audio/1",
+            title = "Oculta",
+            artist = "A",
+            album = "B",
+            year = 2000,
+            durationMs = 10L,
+            isHidden = true,
+        ).toEntity(
+            mediaStoreId = 1L,
+            mimeType = "audio/mpeg",
+            sizeBytes = 1L,
+            path = "/1.mp3",
+        )
+
+        assertEquals(true, domain.isHidden)
     }
 
     @Test

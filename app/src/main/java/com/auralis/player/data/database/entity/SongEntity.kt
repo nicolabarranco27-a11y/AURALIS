@@ -38,6 +38,11 @@ data class SongEntity(
     val playCount: Long,
     val lastPlayedAtEpochMs: Long?,
     val isFavorite: Boolean,
+    /**
+     * true = el usuario oculto la cancion de la biblioteca (accion reversible).
+     * Se conserva ante re-escaneos y no elimina el archivo del dispositivo.
+     */
+    val isHidden: Boolean = false,
     /** URI de la portada (referencia local o de MediaStore). */
     val coverUri: String? = null,
     /**

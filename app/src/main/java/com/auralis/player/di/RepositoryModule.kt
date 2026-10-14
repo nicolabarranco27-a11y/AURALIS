@@ -1,5 +1,6 @@
 package com.auralis.player.di
 
+import com.auralis.player.data.artwork.MediaArtworkColorRepository
 import com.auralis.player.data.metadata.MediaMetadataRetrieverExtractor
 import com.auralis.player.data.metadata.MetadataExtractor
 import com.auralis.player.data.mediastore.AudioDiscoverySource
@@ -11,6 +12,7 @@ import com.auralis.player.data.repository.RoomPlaylistRepository
 import com.auralis.player.data.repository.DefaultLibraryFolderRepository
 import com.auralis.player.data.scanner.DefaultLibraryScanner
 import com.auralis.player.data.scanner.LibraryScanner
+import com.auralis.player.domain.repository.ArtworkColorRepository
 import com.auralis.player.domain.repository.FavoritesRepository
 import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
@@ -61,4 +63,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindLibraryScanner(impl: DefaultLibraryScanner): LibraryScanner
+
+    @Binds
+    @Singleton
+    abstract fun bindArtworkColorRepository(
+        impl: MediaArtworkColorRepository,
+    ): ArtworkColorRepository
 }

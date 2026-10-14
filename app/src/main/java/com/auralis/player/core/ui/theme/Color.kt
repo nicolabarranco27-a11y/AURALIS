@@ -51,3 +51,10 @@ val LightAppColors = AppColors(
     accentDim = Color(0xFF1A3BB0),
     onError = Color(0xFFD32F2F),
 )
+
+/**
+ * Color de respaldo del aura del reproductor cuando la caratula no aporta un
+ * color util (sin portada o portada en escala de grises). Un rojo tenue,
+ * minimalista y con presencia, independiente de la paleta activa.
+ */
+val AuraFallbackColor = Color(0xFFC62828)

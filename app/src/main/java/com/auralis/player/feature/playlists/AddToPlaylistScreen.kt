@@ -1,6 +1,5 @@
 package com.auralis.player.feature.playlists
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.ui.components.AuralisArtwork
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -153,22 +153,15 @@ private fun SelectableSongItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = spacing.l, vertical = spacing.m),
+            .padding(horizontal = spacing.l, vertical = spacing.s),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+        AuralisArtwork(
             modifier = Modifier
-                .size(40.dp)
-                .clip(ReproductorThemeTokens.shapes.small)
-                .background(if (isSelected) colors.accent.copy(alpha = 0.2f) else colors.surfaceRaised),
-            contentAlignment = Alignment.Center
-        ) {
-            if (isSelected) {
-                Text("✓", color = colors.accent, style = AppType.title)
-            } else {
-                Text("♪", color = colors.textSecondary.copy(alpha = 0.4f), style = AppType.title)
-            }
-        }
+                .size(44.dp)
+                .clip(ReproductorThemeTokens.shapes.small),
+            artworkReference = song.coverReference
+        )
 
         Spacer(modifier = Modifier.width(spacing.m))
 
@@ -188,7 +181,7 @@ private fun SelectableSongItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        
+
         Checkbox(
             checked = isSelected,
             onCheckedChange = { onClick() },

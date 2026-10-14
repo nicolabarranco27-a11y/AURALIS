@@ -4,6 +4,7 @@ import com.auralis.player.domain.model.Album
 import com.auralis.player.domain.model.Artist
 import com.auralis.player.domain.model.Genre
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.SongId
 import kotlinx.coroutines.flow.Flow
 
 interface LibraryRepository {
@@ -31,6 +32,12 @@ interface LibraryRepository {
     fun observeAlbumsByArtist(artistName: String): Flow<List<Album>>
 
     suspend fun searchSongs(query: String): List<Song>
+
+    /** Canciones ocultas de la biblioteca (reversibles por el usuario). */
+    fun observeHiddenSongs(): Flow<List<Song>>
+
+    /** Oculta o restaura una cancion de la biblioteca. Reversible y no borra el archivo. */
+    suspend fun setSongHidden(songId: SongId, hidden: Boolean)
 
     /** Emite una senal cada vez que la biblioteca cambia. */
     fun observeLibraryChanges(): Flow<Unit>

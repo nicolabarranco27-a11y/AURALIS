@@ -1,9 +1,12 @@
 package com.auralis.player.feature.player
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.auralis.player.core.ui.theme.AuraFallbackColor
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.RepeatMode
+import com.auralis.player.domain.repository.ArtworkColorRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -13,6 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,7 +29,8 @@ sealed interface SleepTimerState {
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    private val playbackRepository: PlaybackRepository
+    private val playbackRepository: PlaybackRepository,
+    private val artworkColorRepository: ArtworkColorRepository,
 ) : ViewModel() {
 
     val playbackState: StateFlow<PlaybackState> = playbackRepository.observePlaybackState()
@@ -37,7 +43,23 @@ class PlayerViewModel @Inject constructor(
     private val _sleepTimer = MutableStateFlow<SleepTimerState>(SleepTimerState.Off)
     val sleepTimer: StateFlow<SleepTimerState> = _sleepTimer.asStateFlow()
 
+    /** Color del aura del reproductor, derivado de la caratula actual. */
+    private val _artworkAura = MutableStateFlow(AuraFallbackColor)
+    val artworkAura: StateFlow<Color> = _artworkAura.asStateFlow()
+
     private var sleepTimerJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            playbackState
+                .map { it.currentSong?.coverReference }
+                .distinctUntilChanged()
+                .collect { reference ->
+                    val argb = artworkColorRepository.dominantColorFor(reference)
+                    _artworkAura.value = argb?.let { Color(it) } ?: AuraFallbackColor
+                }
+        }
+    }
 
     fun togglePlayPause() {
         if (playbackState.value.isPlaying) {

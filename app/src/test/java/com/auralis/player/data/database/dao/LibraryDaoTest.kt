@@ -193,4 +193,30 @@ class LibraryDaoTest {
         val titles = dao.observeSongs().first().map { it.title }
         assertEquals(listOf("alpha", "Beta"), titles)
     }
+
+    @Test
+    fun `setHidden oculta la cancion de las consultas publicas`() = runTest {
+        val dao = db.libraryDao()
+
+        dao.upsertAll(listOf(song("s1", "A"), song("s2", "B")))
+        dao.setHidden("s1", true)
+
+        assertEquals(listOf("s2"), dao.getSongs().map { it.id })
+        assertEquals(listOf("s1"), dao.observeHiddenSongs().first().map { it.id })
+        assertEquals(listOf("s1"), dao.getHiddenSongs().map { it.id })
+        assertTrue(dao.search("a").isEmpty())
+        assertTrue(dao.getById("s1")!!.isHidden)
+    }
+
+    @Test
+    fun `setHidden false restaura la cancion a la biblioteca`() = runTest {
+        val dao = db.libraryDao()
+
+        dao.upsertAll(listOf(song("s1", "A"), song("s2", "B")))
+        dao.setHidden("s1", true)
+        dao.setHidden("s1", false)
+
+        assertEquals(listOf("s1", "s2"), dao.getSongs().map { it.id })
+        assertTrue(dao.observeHiddenSongs().first().isEmpty())
+    }
 }

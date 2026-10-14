@@ -35,8 +35,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.core.ui.components.MiniPlayerBar
 import com.auralis.player.core.ui.components.QueueFeedbackOverlay
-import com.auralis.player.core.ui.components.SongRow
+import com.auralis.player.core.ui.components.SongActionsSheet
+import com.auralis.player.core.ui.components.SongListItem
+import com.auralis.player.core.ui.components.songActions
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
+import com.auralis.player.domain.model.Song
 
 @Composable
 fun FavoritesScreen(
@@ -50,6 +53,7 @@ fun FavoritesScreen(
     val spacing = ReproductorThemeTokens.spacing
 
     var showQueueFeedback by remember { mutableStateOf(false) }
+    var actionSong by remember { mutableStateOf<Song?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -115,10 +119,11 @@ fun FavoritesScreen(
                             contentPadding = PaddingValues(bottom = 140.dp)
                         ) {
                             items(state.songs, key = { it.id.value }) { song ->
-                                SongRow(
+                                SongListItem(
                                     song = song,
                                     isCurrent = state.playbackState.currentSong?.id == song.id,
                                     onClick = { viewModel.onSongClick(song) },
+                                    onLongClick = { actionSong = song },
                                     onSwipeRight = {
                                         viewModel.addToQueue(song)
                                         showQueueFeedback = true
@@ -159,5 +164,22 @@ fun FavoritesScreen(
                 }
             }
         }
+    }
+
+    actionSong?.let { song ->
+        SongActionsSheet(
+            song = song,
+            actions = songActions(
+                song = song,
+                onPlay = { viewModel.onSongClick(song) },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    showQueueFeedback = true
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onHide = { viewModel.hideSong(song) },
+            ),
+            onDismiss = { actionSong = null },
+        )
     }
 }

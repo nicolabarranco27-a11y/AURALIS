@@ -6,6 +6,7 @@ import com.auralis.player.domain.model.Album
 import com.auralis.player.domain.model.Artist
 import com.auralis.player.domain.model.Genre
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.SongId
 import com.auralis.player.domain.repository.LibraryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -60,6 +61,12 @@ class RoomLibraryRepository @Inject constructor(
         } else {
             libraryDao.search(query.trim()).map { it.toDomain() }
         }
+
+    override fun observeHiddenSongs(): Flow<List<Song>> =
+        libraryDao.observeHiddenSongs().map { songs -> songs.map { it.toDomain() } }
+
+    override suspend fun setSongHidden(songId: SongId, hidden: Boolean) =
+        libraryDao.setHidden(songId.value, hidden)
 
     /** Los observe* de Room ya emiten en cada cambio; esta senal es explicita. */
     override fun observeLibraryChanges(): Flow<Unit> =

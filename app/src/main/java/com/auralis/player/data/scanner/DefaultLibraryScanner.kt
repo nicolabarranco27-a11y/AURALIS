@@ -104,6 +104,7 @@ class DefaultLibraryScanner @Inject constructor(
                     playCount = existing.playCount,
                     lastPlayedAtEpochMs = existing.lastPlayedAtEpochMs,
                     isFavorite = existing.isFavorite,
+                    isHidden = existing.isHidden,
                 )
                 updated++
             } else {

@@ -10,6 +10,7 @@ import com.auralis.player.data.scanner.LibraryScanScheduler
 import com.auralis.player.data.scanner.ScanOutcome
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
+import com.auralis.player.domain.model.PlaylistId
 import com.auralis.player.domain.repository.LibraryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -229,6 +230,7 @@ class HomeViewModelTest {
             monitor,
             favorites,
             folders,
+            FakePlaylistRepository(),
         )
 
         assertFalse(viewModel.uiState.first().hasPermission)
@@ -239,6 +241,17 @@ class HomeViewModelTest {
         assertTrue(true)
     }
 
+    @Test
+    fun `deletePlaylist delega en el repositorio`() = kotlinx.coroutines.test.runTest {
+        val playlists = FakePlaylistRepository()
+        val viewModel = createViewModel(hasPermission = true, playlistRepository = playlists)
+
+        val id = PlaylistId("Mi lista")
+        viewModel.deletePlaylist(id)
+
+        assertEquals(listOf(id), playlists.deleted)
+    }
+
     private fun createViewModel(
         hasPermission: Boolean,
         libraryRepository: LibraryRepository = FakeLibraryRepository(),
@@ -247,9 +260,26 @@ class HomeViewModelTest {
         scanMonitor: LibraryScanMonitor = FakeScanMonitor(),
         favoritesRepository: com.auralis.player.domain.repository.FavoritesRepository = FakeFavoritesRepository(),
         folderRepository: com.auralis.player.domain.repository.LibraryFolderRepository = FakeLibraryFolderRepository(),
+        playlistRepository: com.auralis.player.domain.repository.PlaylistRepository = FakePlaylistRepository(),
     ): HomeViewModel {
         grantAudioPermission(hasPermission)
-        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor, favoritesRepository, folderRepository)
+        return HomeViewModel(context, libraryRepository, playbackRepository, scanScheduler, scanMonitor, favoritesRepository, folderRepository, playlistRepository)
+    }
+
+    private class FakePlaylistRepository : com.auralis.player.domain.repository.PlaylistRepository {
+        val deleted = mutableListOf<com.auralis.player.domain.model.PlaylistId>()
+        override fun observePlaylists(): kotlinx.coroutines.flow.Flow<List<com.auralis.player.domain.model.Playlist>> = emptyFlow()
+        override fun observePlaylistSummaries(): kotlinx.coroutines.flow.Flow<List<com.auralis.player.domain.model.PlaylistSummary>> = flowOf(emptyList())
+        override suspend fun getPlaylist(id: com.auralis.player.domain.model.PlaylistId): com.auralis.player.domain.model.Playlist? = null
+        override suspend fun getSongs(id: com.auralis.player.domain.model.PlaylistId): List<com.auralis.player.domain.model.PlaylistSong> = emptyList()
+        override fun observeSongs(id: com.auralis.player.domain.model.PlaylistId): kotlinx.coroutines.flow.Flow<List<Song>> = emptyFlow()
+        override suspend fun createPlaylist(name: String, description: String?): com.auralis.player.domain.model.PlaylistId = com.auralis.player.domain.model.PlaylistId(name)
+        override suspend fun renamePlaylist(id: com.auralis.player.domain.model.PlaylistId, name: String) {}
+        override suspend fun updateDescription(id: com.auralis.player.domain.model.PlaylistId, description: String?) {}
+        override suspend fun deletePlaylist(id: com.auralis.player.domain.model.PlaylistId) { deleted += id }
+        override suspend fun addSong(playlistId: com.auralis.player.domain.model.PlaylistId, songId: SongId) {}
+        override suspend fun removeSong(playlistId: com.auralis.player.domain.model.PlaylistId, songId: SongId) {}
+        override suspend fun moveSong(playlistId: com.auralis.player.domain.model.PlaylistId, songId: SongId, newPosition: Int) {}
     }
 
     private class FakeLibraryFolderRepository : com.auralis.player.domain.repository.LibraryFolderRepository {
@@ -306,6 +336,8 @@ class HomeViewModelTest {
         override fun observeAlbumsByArtist(artistName: String): kotlinx.coroutines.flow.Flow<List<com.auralis.player.domain.model.Album>> = emptyFlow()
         override fun observeLibraryChanges(): kotlinx.coroutines.flow.Flow<Unit> = emptyFlow()
         override suspend fun searchSongs(query: String): List<Song> = emptyList()
+        override fun observeHiddenSongs(): kotlinx.coroutines.flow.Flow<List<Song>> = emptyFlow()
+        override suspend fun setSongHidden(songId: com.auralis.player.domain.model.SongId, hidden: Boolean) {}
     }
 
     private class FakeScanScheduler @javax.inject.Inject constructor(

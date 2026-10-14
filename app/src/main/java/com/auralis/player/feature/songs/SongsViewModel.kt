@@ -95,6 +95,12 @@ class SongsViewModel @Inject constructor(
         }
     }
 
+    fun hideSong(song: Song) {
+        viewModelScope.launch {
+            libraryRepository.setSongHidden(song.id, true)
+        }
+    }
+
     fun addFolder(treeUri: String) {
         viewModelScope.launch {
             folderRepository.addFolder(treeUri)

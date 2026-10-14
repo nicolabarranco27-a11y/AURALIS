@@ -21,7 +21,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.components.MiniPlayerBar
 import com.auralis.player.core.ui.components.QueueFeedbackOverlay
-import com.auralis.player.core.ui.components.SongRow
+import com.auralis.player.core.ui.components.SongActionsSheet
+import com.auralis.player.core.ui.components.SongListItem
+import com.auralis.player.core.ui.components.songActions
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -43,6 +45,7 @@ fun SongsScreen(
 
     var showQueueFeedback by remember { mutableStateOf(false) }
     var showFolderSheet by remember { mutableStateOf(false) }
+    var actionSong by remember { mutableStateOf<Song?>(null) }
     val openFolderPicker = rememberFolderPickerLauncher { uri -> viewModel.addFolder(uri) }
 
     Scaffold(
@@ -84,6 +87,7 @@ fun SongsScreen(
                                 showQueueFeedback = true
                             },
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
+                            onLongPress = { actionSong = it },
                             onPlayPauseClick = { viewModel.togglePlayPause() },
                             onPlayerClick = onPlayerClick,
                             onSeek = { viewModel.seekTo(it) },
@@ -109,6 +113,23 @@ fun SongsScreen(
             onAddFolder = { openFolderPicker() },
             onRemoveFolder = { viewModel.removeFolder(it) },
             onDismiss = { showFolderSheet = false }
+        )
+    }
+
+    actionSong?.let { song ->
+        SongActionsSheet(
+            song = song,
+            actions = songActions(
+                song = song,
+                onPlay = { viewModel.onSongClick(song) },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    showQueueFeedback = true
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onHide = { viewModel.hideSong(song) },
+            ),
+            onDismiss = { actionSong = null },
         )
     }
 }
@@ -225,6 +246,7 @@ private fun SongsContent(
     onSongClick: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleFavorite: (Song) -> Unit,
+    onLongPress: (Song) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -240,10 +262,11 @@ private fun SongsContent(
         ) {
             items(state.songs, key = { it.id.value }) { song ->
                 val isCurrent = state.playbackState.currentSong?.id == song.id
-                SongRow(
+                SongListItem(
                     song = song,
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
+                    onLongClick = { onLongPress(song) },
                     onSwipeRight = { onAddToQueue(song) },
                     onToggleFavorite = { onToggleFavorite(song) },
                     colors = colors,

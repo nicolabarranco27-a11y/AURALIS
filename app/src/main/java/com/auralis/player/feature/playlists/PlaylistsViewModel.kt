@@ -2,7 +2,8 @@ package com.auralis.player.feature.playlists
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.auralis.player.domain.model.Playlist
+import com.auralis.player.domain.model.PlaylistId
+import com.auralis.player.domain.model.PlaylistSummary
 import com.auralis.player.domain.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class PlaylistsUiState(
-    val playlists: List<Playlist> = emptyList(),
+    val playlists: List<PlaylistSummary> = emptyList(),
     val isLoading: Boolean = true,
 )
 
@@ -27,21 +28,28 @@ class PlaylistsViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            playlistRepository.observePlaylists().collect { list ->
+            playlistRepository.observePlaylistSummaries().collect { list ->
                 _uiState.update { it.copy(playlists = list, isLoading = false) }
             }
         }
     }
 
-    fun createPlaylist(name: String) {
+    fun createPlaylist(name: String, description: String? = null) {
         viewModelScope.launch {
-            playlistRepository.createPlaylist(name)
+            playlistRepository.createPlaylist(name, description)
         }
     }
 
-    fun deletePlaylist(playlist: Playlist) {
+    fun editPlaylist(id: PlaylistId, name: String, description: String?) {
         viewModelScope.launch {
-            playlistRepository.deletePlaylist(playlist.id)
+            playlistRepository.renamePlaylist(id, name)
+            playlistRepository.updateDescription(id, description)
+        }
+    }
+
+    fun deletePlaylist(id: PlaylistId) {
+        viewModelScope.launch {
+            playlistRepository.deletePlaylist(id)
         }
     }
 }

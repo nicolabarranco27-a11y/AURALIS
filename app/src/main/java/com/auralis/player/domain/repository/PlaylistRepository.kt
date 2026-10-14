@@ -3,12 +3,16 @@ package com.auralis.player.domain.repository
 import com.auralis.player.domain.model.Playlist
 import com.auralis.player.domain.model.PlaylistId
 import com.auralis.player.domain.model.PlaylistSong
+import com.auralis.player.domain.model.PlaylistSummary
 import com.auralis.player.domain.model.SongId
 import kotlinx.coroutines.flow.Flow
 
 interface PlaylistRepository {
 
     fun observePlaylists(): Flow<List<Playlist>>
+
+    /** Playlists con estadisticas (numero de canciones visibles, duracion, portada). */
+    fun observePlaylistSummaries(): Flow<List<PlaylistSummary>>
 
     suspend fun getPlaylist(id: PlaylistId): Playlist?
 
@@ -19,6 +23,8 @@ interface PlaylistRepository {
     suspend fun createPlaylist(name: String, description: String? = null): PlaylistId
 
     suspend fun renamePlaylist(id: PlaylistId, name: String)
+
+    suspend fun updateDescription(id: PlaylistId, description: String?)
 
     suspend fun deletePlaylist(id: PlaylistId)
 

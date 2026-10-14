@@ -3,6 +3,7 @@ package com.auralis.player.data.repository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.auralis.player.data.database.AppDatabase
+import com.auralis.player.data.database.entity.SongEntity
 import com.auralis.player.domain.model.PlaylistId
 import com.auralis.player.domain.model.PlaylistSong
 import com.auralis.player.domain.model.SongId
@@ -126,5 +127,77 @@ class RoomPlaylistRepositoryTest {
         assertEquals(listOf(0, 1), songs.map { it.position })
         assertEquals(listOf("s1", "s2"), songs.map { it.songId.value })
         assertFalse(songs.isEmpty())
+    }
+
+    @Test
+    fun `resumen calcula canciones visibles, duracion y portada`() = runTest {
+        val pid = repository.createPlaylist("Lista")
+        insertSong("s1", "Uno", 60_000, coverUri = "content://cover/1")
+        insertSong("s2", "Dos", 120_000)
+        insertSong("s3", "Oculta", 999_000, isHidden = true)
+        listOf("s1", "s2", "s3").forEach { repository.addSong(pid, SongId(it)) }
+
+        val summary = repository.observePlaylistSummaries().first().first { it.id == pid }
+
+        assertEquals("Lista", summary.name)
+        assertEquals(2, summary.songCount)
+        assertEquals(180_000L, summary.totalDurationMs)
+        assertEquals("content://cover/1", summary.coverReference)
+    }
+
+    @Test
+    fun `resumen de playlist vacia cuenta cero`() = runTest {
+        val pid = repository.createPlaylist("Vacía")
+        val summary = repository.observePlaylistSummaries().first().first { it.id == pid }
+
+        assertEquals(0, summary.songCount)
+        assertEquals(0L, summary.totalDurationMs)
+        assertNull(summary.coverReference)
+    }
+
+    @Test
+    fun `editar descripcion persiste y admite vacio`() = runTest {
+        val pid = repository.createPlaylist("Lista", description = "vieja")
+
+        repository.updateDescription(pid, "nueva")
+        assertEquals("nueva", repository.getPlaylist(pid)?.description)
+
+        repository.updateDescription(pid, null)
+        assertNull(repository.getPlaylist(pid)?.description)
+    }
+
+    private suspend fun insertSong(
+        id: String,
+        title: String,
+        durationMs: Long?,
+        coverUri: String? = null,
+        isHidden: Boolean = false,
+    ) {
+        db.libraryDao().upsert(
+            SongEntity(
+                id = id,
+                mediaStoreId = id.hashCode().toLong(),
+                uri = "content://song/$id",
+                title = title,
+                artist = "Artista",
+                album = "Álbum",
+                albumArtist = "Artista",
+                genre = null,
+                year = null,
+                trackNumber = null,
+                discNumber = null,
+                durationMs = durationMs,
+                dateAddedEpochMs = null,
+                dateModifiedEpochMs = null,
+                mimeType = null,
+                sizeBytes = null,
+                path = null,
+                playCount = 0,
+                lastPlayedAtEpochMs = null,
+                isFavorite = false,
+                isHidden = isHidden,
+                coverUri = coverUri,
+            )
+        )
     }
 }

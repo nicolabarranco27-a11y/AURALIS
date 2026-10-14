@@ -49,6 +49,7 @@ import com.auralis.player.feature.playlists.AddToPlaylistScreen
 import com.auralis.player.feature.favorites.FavoritesScreen
 import com.auralis.player.feature.queue.QueueScreen
 import com.auralis.player.feature.settings.SettingsScreen
+import com.auralis.player.feature.hidden.HiddenSongsScreen
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -60,6 +61,7 @@ object Routes {
     const val FAVORITES = "favorites"
     const val QUEUE = "queue"
     const val SETTINGS = "settings"
+    const val HIDDEN_SONGS = "hidden_songs"
     const val PLAYER = "player"
     const val ALBUM_DETAIL = "album_detail/{albumId}"
     const val ARTIST_DETAIL = "artist_detail/{artistName}"
@@ -117,7 +119,8 @@ fun ReproductorNavHost() {
             composable(Routes.HOME) {
                 HomeScreen(
                     onMenuClick = { scope.launch { drawerState.open() } },
-                    onPlayerClick = { navController.navigate(Routes.PLAYER) }
+                    onPlayerClick = { navController.navigate(Routes.PLAYER) },
+                    onPlaylistClick = { id -> navController.navigate(Routes.playlistDetail(id)) }
                 )
             }
             composable(Routes.SONGS) {
@@ -179,6 +182,13 @@ fun ReproductorNavHost() {
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onBackClick = { navController.popBackStack() },
+                    onHiddenSongsClick = { navController.navigate(Routes.HIDDEN_SONGS) },
+                )
+            }
+            composable(Routes.HIDDEN_SONGS) {
+                HiddenSongsScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onPlayerClick = { navController.navigate(Routes.PLAYER) },
                 )
             }
             composable(Routes.PLAYER) {

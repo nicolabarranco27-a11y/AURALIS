@@ -26,5 +26,7 @@ data class Song(
     val playCount: Long = 0L,
     val lastPlayedAt: Instant? = null,
     val isFavorite: Boolean = false,
+    /** true = oculta de la biblioteca por el usuario (reversible). */
+    val isHidden: Boolean = false,
     val coverReference: String? = null,
 )

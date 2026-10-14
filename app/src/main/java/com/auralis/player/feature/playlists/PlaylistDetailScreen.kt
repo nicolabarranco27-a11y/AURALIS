@@ -1,36 +1,39 @@
 package com.auralis.player.feature.playlists
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.auralis.player.core.common.format.formatDuration
+import com.auralis.player.core.common.format.formatSongCount
+import com.auralis.player.core.common.format.formatTotalDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
-import com.auralis.player.core.ui.components.QueueFeedbackOverlay
+import com.auralis.player.core.ui.components.ConfirmDeleteDialog
+import com.auralis.player.core.ui.components.EditPlaylistDialog
 import com.auralis.player.core.ui.components.MiniPlayerBar
+import com.auralis.player.core.ui.components.QueueFeedbackOverlay
+import com.auralis.player.core.ui.components.SongAction
+import com.auralis.player.core.ui.components.SongActionsSheet
+import com.auralis.player.core.ui.components.SongListItem
+import com.auralis.player.core.ui.components.songActions
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
@@ -38,7 +41,6 @@ import com.auralis.player.core.ui.theme.ReproductorThemeTokens
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
-import kotlinx.coroutines.launch
 
 @Composable
 fun PlaylistDetailScreen(
@@ -53,7 +55,10 @@ fun PlaylistDetailScreen(
     val spacing = ReproductorThemeTokens.spacing
 
     var showQueueFeedback by remember { mutableStateOf(false) }
-    var showRenameDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var actionSong by remember { mutableStateOf<Song?>(null) }
+    var actionIndex by remember { mutableIntStateOf(-1) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -80,14 +85,21 @@ fun PlaylistDetailScreen(
                         PlaylistDetailContent(
                             state = state,
                             onBackClick = onBackClick,
-                            onRenameClick = { showRenameDialog = true },
+                            onEditClick = { showEditDialog = true },
+                            onDeleteClick = { showDeleteDialog = true },
                             onAddSongsClick = { onAddSongsClick(state.playlist!!.id.value) },
+                            onPlayAll = { viewModel.playAll(shuffle = false) },
+                            onShufflePlay = { viewModel.playAll(shuffle = true) },
                             onSongClick = { viewModel.onSongClick(it) },
                             onAddToQueue = {
                                 viewModel.addToQueue(it)
                                 showQueueFeedback = true
                             },
                             onToggleFavorite = { viewModel.toggleFavorite(it) },
+                            onLongPress = { song, index ->
+                                actionSong = song
+                                actionIndex = index
+                            },
                             onRemoveSong = { viewModel.removeSong(it) },
                             onPlayPauseClick = { viewModel.togglePlayPause() },
                             onPlayerClick = onPlayerClick,
@@ -97,7 +109,7 @@ fun PlaylistDetailScreen(
                             colors = colors,
                             spacing = spacing
                         )
-                        
+
                         QueueFeedbackOverlay(
                             visible = showQueueFeedback,
                             onDismiss = { showQueueFeedback = false }
@@ -108,15 +120,75 @@ fun PlaylistDetailScreen(
         }
     }
 
-    if (showRenameDialog && state.playlist != null) {
-        RenamePlaylistDialog(
+    if (showEditDialog && state.playlist != null) {
+        EditPlaylistDialog(
             currentName = state.playlist!!.name,
-            onDismiss = { showRenameDialog = false },
-            onConfirm = { 
-                viewModel.renamePlaylist(it)
-                showRenameDialog = false
+            currentDescription = state.playlist!!.description,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { name, description ->
+                viewModel.updateDetails(name, description)
+                showEditDialog = false
+            },
+            colors = colors,
+            spacing = spacing
+        )
+    }
+
+    if (showDeleteDialog && state.playlist != null) {
+        ConfirmDeleteDialog(
+            title = "Eliminar playlist",
+            message = "¿Seguro que quieres eliminar \"${state.playlist!!.name}\"? Esta acción no se puede deshacer.",
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                viewModel.deletePlaylist()
+                showDeleteDialog = false
+                onBackClick()
             },
             colors = colors
+        )
+    }
+
+    actionSong?.let { song ->
+        val songCount = state.songs.size
+        SongActionsSheet(
+            song = song,
+            actions = songActions(
+                song = song,
+                onPlay = { viewModel.onSongClick(song) },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    showQueueFeedback = true
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onHide = { viewModel.hideSong(song) },
+                extra = buildList {
+                    add(
+                        SongAction(
+                            icon = Icons.Rounded.ArrowUpward,
+                            label = "Mover arriba",
+                            enabled = actionIndex > 0,
+                            onClick = { viewModel.moveSong(song.id, actionIndex - 1) },
+                        )
+                    )
+                    add(
+                        SongAction(
+                            icon = Icons.Rounded.ArrowDownward,
+                            label = "Mover abajo",
+                            enabled = actionIndex in 0 until songCount - 1,
+                            onClick = { viewModel.moveSong(song.id, actionIndex + 1) },
+                        )
+                    )
+                    add(
+                        SongAction(
+                            icon = Icons.Rounded.Remove,
+                            label = "Quitar de esta playlist",
+                            destructive = true,
+                            onClick = { viewModel.removeSong(song.id) },
+                        )
+                    )
+                },
+            ),
+            onDismiss = { actionSong = null },
         )
     }
 }
@@ -125,11 +197,15 @@ fun PlaylistDetailScreen(
 private fun PlaylistDetailContent(
     state: PlaylistDetailUiState,
     onBackClick: () -> Unit,
-    onRenameClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     onAddSongsClick: () -> Unit,
+    onPlayAll: () -> Unit,
+    onShufflePlay: () -> Unit,
     onSongClick: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleFavorite: (Song) -> Unit,
+    onLongPress: (Song, Int) -> Unit,
     onRemoveSong: (SongId) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
@@ -139,6 +215,8 @@ private fun PlaylistDetailContent(
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    val totalDuration = remember(state.songs) { state.songs.sumOf { it.durationMs ?: 0L } }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -147,9 +225,16 @@ private fun PlaylistDetailContent(
             item {
                 PlaylistDetailHeader(
                     name = state.playlist?.name ?: "",
+                    description = state.playlist?.description,
+                    coverReference = state.songs.firstOrNull()?.coverReference,
+                    songCount = state.songs.size,
+                    totalDurationMs = totalDuration,
                     onBackClick = onBackClick,
-                    onRenameClick = onRenameClick,
+                    onEditClick = onEditClick,
+                    onDeleteClick = onDeleteClick,
                     onAddSongsClick = onAddSongsClick,
+                    onPlayAll = onPlayAll,
+                    onShufflePlay = onShufflePlay,
                     colors = colors,
                     spacing = spacing
                 )
@@ -172,15 +257,24 @@ private fun PlaylistDetailContent(
                 }
             }
 
-            items(state.songs, key = { it.id.value }) { song ->
+            itemsIndexed(state.songs, key = { _, song -> song.id.value }) { index, song ->
                 val isCurrent = state.playbackState.currentSong?.id == song.id
-                SongItem(
+                SongListItem(
                     song = song,
                     isCurrent = isCurrent,
                     onClick = { onSongClick(song) },
+                    onLongClick = { onLongPress(song, index) },
                     onSwipeRight = { onAddToQueue(song) },
                     onToggleFavorite = { onToggleFavorite(song) },
-                    onRemove = { onRemoveSong(song.id) },
+                    trailingContent = {
+                        IconButton(onClick = { onRemoveSong(song.id) }) {
+                            Icon(
+                                imageVector = Icons.Rounded.Remove,
+                                contentDescription = "Quitar de la playlist",
+                                tint = colors.onError.copy(alpha = 0.6f)
+                            )
+                        }
+                    },
                     colors = colors,
                     spacing = spacing
                 )
@@ -213,16 +307,25 @@ private fun PlaylistDetailContent(
 @Composable
 private fun PlaylistDetailHeader(
     name: String,
+    description: String?,
+    coverReference: String?,
+    songCount: Int,
+    totalDurationMs: Long,
     onBackClick: () -> Unit,
-    onRenameClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     onAddSongsClick: () -> Unit,
+    onPlayAll: () -> Unit,
+    onShufflePlay: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(spacing.l)
+            .padding(horizontal = spacing.l, vertical = spacing.m)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -239,183 +342,133 @@ private fun PlaylistDetailHeader(
                     tint = colors.textPrimary
                 )
             }
-            
-            TextButton(onClick = onRenameClick) {
-                Text("RENOMBRAR", style = AppType.label, color = colors.accent)
+
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreVert,
+                        contentDescription = "Opciones",
+                        tint = colors.textPrimary
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    containerColor = colors.surfaceRaised
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Editar", style = AppType.body, color = colors.textPrimary) },
+                        onClick = {
+                            menuExpanded = false
+                            onEditClick()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Eliminar", style = AppType.body, color = colors.onError) },
+                        onClick = {
+                            menuExpanded = false
+                            onDeleteClick()
+                        }
+                    )
+                }
             }
         }
 
         Spacer(modifier = Modifier.height(spacing.m))
 
-        Text(
-            text = name,
-            style = AppType.display.copy(fontSize = 32.sp, fontWeight = FontWeight.Bold),
-            color = colors.textPrimary,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        
-        Spacer(modifier = Modifier.height(spacing.l))
-        
-        Button(
-            onClick = onAddSongsClick,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.surfaceRaised,
-                contentColor = colors.accent
-            ),
-            shape = ReproductorThemeTokens.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("AÑADIR CANCIONES", style = AppType.label)
-        }
-    }
-}
-
-@Composable
-private fun SongItem(
-    song: Song,
-    isCurrent: Boolean,
-    onClick: () -> Unit,
-    onSwipeRight: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    onRemove: () -> Unit,
-    colors: AppColors,
-    spacing: AppSpacing
-) {
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    val scope = rememberCoroutineScope()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, dragAmount ->
-                        offsetX = (offsetX + dragAmount).coerceIn(0f, 300f)
-                    },
-                    onDragEnd = {
-                        if (offsetX > 150f) {
-                            onSwipeRight()
-                        }
-                        scope.launch {
-                            Animatable(offsetX).animateTo(
-                                targetValue = 0f,
-                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                            ) {
-                                offsetX = value
-                            }
-                        }
-                    },
-                    onDragCancel = {
-                        scope.launch {
-                            Animatable(offsetX).animateTo(0f) {
-                                offsetX = value
-                            }
-                        }
-                    }
-                )
-            }
-            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 100f).coerceAtMost(1f)) else Color.Transparent)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer { translationX = offsetX }
-                .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else colors.background)
-                .clickable(enabled = offsetX == 0f, onClick = onClick)
-                .padding(horizontal = spacing.l, vertical = spacing.m),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             AuralisArtwork(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(ReproductorThemeTokens.shapes.small),
-                artworkReference = song.coverReference
+                    .size(96.dp)
+                    .clip(ReproductorThemeTokens.shapes.medium),
+                artworkReference = coverReference
             )
-
             Spacer(modifier = Modifier.width(spacing.m))
-
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = song.title,
-                    style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
-                    color = if (isCurrent) colors.accent else colors.textPrimary,
-                    maxLines = 1,
+                    text = name,
+                    style = AppType.display.copy(fontSize = 26.sp, fontWeight = FontWeight.Bold),
+                    color = colors.textPrimary,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.height(spacing.xs))
                 Text(
-                    text = (song.artist ?: "Artista desconocido").uppercase(),
-                    style = AppType.label.copy(fontSize = 9.sp, letterSpacing = 1.sp),
-                    color = colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = buildString {
+                        append(formatSongCount(songCount))
+                        if (totalDurationMs > 0) {
+                            append(" · ")
+                            append(formatTotalDuration(totalDurationMs))
+                        }
+                    },
+                    style = AppType.label.copy(fontSize = 12.sp),
+                    color = colors.textSecondary
                 )
+                if (!description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(spacing.xs))
+                    Text(
+                        text = description,
+                        style = AppType.body.copy(fontSize = 13.sp),
+                        color = colors.textSecondary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
+        }
 
-            Spacer(modifier = Modifier.width(spacing.s))
+        Spacer(modifier = Modifier.height(spacing.l))
 
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier.size(36.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = onPlayAll,
+                enabled = songCount > 0,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.accent,
+                    contentColor = androidx.compose.ui.graphics.Color.White
+                ),
+                shape = ReproductorThemeTokens.shapes.medium,
+                modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
-                    tint = if (song.isFavorite) Color(0xFFE53935) else colors.textSecondary.copy(alpha = 0.6f),
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
+                Spacer(modifier = Modifier.width(spacing.xs))
+                Text("REPRODUCIR", style = AppType.label)
             }
-            
-            IconButton(onClick = onRemove) {
+
+            FilledIconButton(
+                onClick = onShufflePlay,
+                enabled = songCount > 0,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = colors.surfaceRaised,
+                    contentColor = colors.accent
+                )
+            ) {
                 Icon(
-                    imageVector = Icons.Rounded.Remove,
-                    contentDescription = "Quitar de la playlist",
-                    tint = colors.onError.copy(alpha = 0.6f)
+                    imageVector = Icons.Rounded.Shuffle,
+                    contentDescription = "Aleatorio"
+                )
+            }
+
+            FilledIconButton(
+                onClick = onAddSongsClick,
+                colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = colors.surfaceRaised,
+                    contentColor = colors.accent
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Añadir canciones"
                 )
             }
         }
     }
 }
-
-@Composable
-private fun RenamePlaylistDialog(
-    currentName: String,
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
-    colors: AppColors
-) {
-    var name by remember { mutableStateOf(currentName) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surfaceRaised,
-        title = { Text("Renombrar Playlist", style = AppType.title, color = colors.textPrimary) },
-        text = {
-            TextField(
-                value = name,
-                onValueChange = { name = it },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = colors.accent,
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary
-                ),
-                textStyle = AppType.body,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { if (name.isNotBlank()) onConfirm(name) }) {
-                Text("GUARDAR", style = AppType.label, color = colors.accent)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCELAR", style = AppType.label, color = colors.textSecondary)
-            }
-        }
-    )
-}
-

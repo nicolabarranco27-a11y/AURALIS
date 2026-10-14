@@ -13,6 +13,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.auralis.player.core.common.audio.PlaybackRhythm
 import com.auralis.player.data.repository.EqualizerPreferences
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -24,6 +25,7 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var exoPlayer: Player? = null
     private var activeEqualizer: android.media.audiofx.Equalizer? = null
+    private val rhythmProcessor = RhythmAudioProcessor()
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -43,6 +45,7 @@ class PlaybackService : MediaSessionService() {
             .build()
 
         val player = ExoPlayer.Builder(this)
+            .setRenderersFactory(AuraRenderersFactory(this, rhythmProcessor))
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_LOCAL)
@@ -175,6 +178,7 @@ class PlaybackService : MediaSessionService() {
             activeEqualizer?.release()
             activeEqualizer = null
         } catch (_: Exception) { }
+        PlaybackRhythm.reset()
         mediaSession?.run {
             player.release()
             release()

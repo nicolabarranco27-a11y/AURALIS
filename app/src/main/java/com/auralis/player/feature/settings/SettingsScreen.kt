@@ -31,6 +31,7 @@ import com.auralis.player.feature.folders.rememberFolderPickerLauncher
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
+    onHiddenSongsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -80,6 +81,14 @@ fun SettingsScreen(
         FolderSelectionCard(
             selectedFolders = selectedFolders,
             onManageFoldersClick = { showFolderSheet = true },
+            colors = colors,
+            spacing = spacing
+        )
+
+        Spacer(modifier = Modifier.height(spacing.m))
+
+        HiddenSongsCard(
+            onClick = onHiddenSongsClick,
             colors = colors,
             spacing = spacing
         )
@@ -160,6 +169,35 @@ private fun FolderSelectionCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HiddenSongsCard(
+    onClick: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = ReproductorThemeTokens.shapes.medium,
+        color = colors.surfaceRaised,
+        tonalElevation = 2.dp
+    ) {
+        Column(modifier = Modifier.padding(spacing.m)) {
+            Text(
+                text = "Canciones ocultas",
+                style = AppType.body.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary
+            )
+            Spacer(modifier = Modifier.height(spacing.xs))
+            Text(
+                text = "Revisa y restaura las canciones que ocultaste de tu biblioteca.",
+                style = AppType.label.copy(fontSize = 12.sp, letterSpacing = 0.5.sp),
+                color = colors.textSecondary
+            )
         }
     }
 }

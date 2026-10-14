@@ -9,10 +9,12 @@ import com.auralis.player.data.scanner.LibraryScanScheduler
 import com.auralis.player.data.scanner.ScanOutcome
 import com.auralis.player.data.scanner.hasAudioAccess
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.PlaylistSummary
 import com.auralis.player.domain.repository.FavoritesRepository
 import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
+import com.auralis.player.domain.repository.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +49,7 @@ data class HomeUiState(
     val isSearchActive: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Song> = emptyList(),
+    val playlists: List<PlaylistSummary> = emptyList(),
 ) {
 
     val songCount: Int get() = songs.size
@@ -57,6 +60,7 @@ private data class CoreData(
     val status: LibraryScanMonitor.Status,
     val playback: com.auralis.player.domain.model.PlaybackState,
     val selectedFolders: Set<String>,
+    val playlists: List<PlaylistSummary>,
 )
 
 @HiltViewModel
@@ -68,6 +72,7 @@ class HomeViewModel @Inject constructor(
     private val scanMonitor: LibraryScanMonitor,
     private val favoritesRepository: FavoritesRepository,
     private val folderRepository: LibraryFolderRepository,
+    private val playlistRepository: PlaylistRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(hasPermission = context.hasAudioAccess()))
@@ -102,8 +107,9 @@ class HomeViewModel @Inject constructor(
                 scanMonitor.status,
                 playbackRepository.observePlaybackState(),
                 folderRepository.observeSelectedFolders(),
-            ) { songs, status, playback, folders ->
-                CoreData(songs, status, playback, folders)
+                playlistRepository.observePlaylistSummaries(),
+            ) { songs, status, playback, folders, playlists ->
+                CoreData(songs, status, playback, folders, playlists)
             }
 
             combine(
@@ -122,7 +128,8 @@ class HomeViewModel @Inject constructor(
                     playbackState = core.playback,
                     isSearchActive = active,
                     searchQuery = query,
-                    searchResults = results
+                    searchResults = results,
+                    playlists = core.playlists,
                 )
             }.collect { newState -> _uiState.value = newState }
         }
@@ -179,6 +186,24 @@ class HomeViewModel @Inject constructor(
     fun toggleFavorite(song: Song) {
         viewModelScope.launch {
             favoritesRepository.toggleFavorite(song.id)
+        }
+    }
+
+    fun hideSong(song: Song) {
+        viewModelScope.launch {
+            libraryRepository.setSongHidden(song.id, true)
+        }
+    }
+
+    fun createPlaylist(name: String, description: String? = null) {
+        viewModelScope.launch {
+            playlistRepository.createPlaylist(name, description)
+        }
+    }
+
+    fun deletePlaylist(id: com.auralis.player.domain.model.PlaylistId) {
+        viewModelScope.launch {
+            playlistRepository.deletePlaylist(id)
         }
     }
 

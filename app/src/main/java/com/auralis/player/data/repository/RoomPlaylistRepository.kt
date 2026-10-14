@@ -3,11 +3,13 @@ package com.auralis.player.data.repository
 import androidx.room.withTransaction
 import com.auralis.player.data.database.AppDatabase
 import com.auralis.player.data.database.dao.PlaylistDao
+import com.auralis.player.data.database.dao.PlaylistSummaryRow
 import com.auralis.player.data.database.mapper.toDomain
 import com.auralis.player.data.database.mapper.toEntity
 import com.auralis.player.domain.model.Playlist
 import com.auralis.player.domain.model.PlaylistId
 import com.auralis.player.domain.model.PlaylistSong
+import com.auralis.player.domain.model.PlaylistSummary
 import com.auralis.player.domain.model.SongId
 import com.auralis.player.domain.repository.PlaylistRepository
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +27,18 @@ class RoomPlaylistRepository @Inject constructor(
 
     override fun observePlaylists(): Flow<List<Playlist>> =
         playlistDao.observePlaylists().map { list -> list.map { it.toDomain() } }
+
+    override fun observePlaylistSummaries(): Flow<List<PlaylistSummary>> =
+        playlistDao.observePlaylistSummaries().map { list -> list.map { it.toDomain() } }
+
+    private fun PlaylistSummaryRow.toDomain() = PlaylistSummary(
+        id = PlaylistId(id),
+        name = name,
+        description = description,
+        songCount = songCount,
+        totalDurationMs = totalDurationMs,
+        coverReference = coverUri,
+    )
 
     override suspend fun getPlaylist(id: PlaylistId): Playlist? =
         playlistDao.getPlaylist(id.value)?.toDomain()
@@ -52,6 +66,10 @@ class RoomPlaylistRepository @Inject constructor(
 
     override suspend fun renamePlaylist(id: PlaylistId, name: String) {
         playlistDao.renamePlaylist(id.value, name, Instant.now().toEpochMilli())
+    }
+
+    override suspend fun updateDescription(id: PlaylistId, description: String?) {
+        playlistDao.updateDescription(id.value, description, Instant.now().toEpochMilli())
     }
 
     override suspend fun deletePlaylist(id: PlaylistId) {

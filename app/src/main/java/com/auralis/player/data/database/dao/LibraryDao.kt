@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LibraryDao {
 
-    @Query("SELECT * FROM songs WHERE isAvailable = 1 ORDER BY title COLLATE NOCASE")
+    @Query("SELECT * FROM songs WHERE isAvailable = 1 AND isHidden = 0 ORDER BY title COLLATE NOCASE")
     fun observeSongs(): Flow<List<SongEntity>>
 
     @Query("""
@@ -21,7 +21,7 @@ interface LibraryDao {
             MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
-        WHERE isAvailable = 1 AND album IS NOT NULL
+        WHERE isAvailable = 1 AND isHidden = 0 AND album IS NOT NULL
         GROUP BY album, artist
         ORDER BY album COLLATE NOCASE
     """)
@@ -36,7 +36,7 @@ interface LibraryDao {
             MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
-        WHERE isAvailable = 1 AND album IS NOT NULL
+        WHERE isAvailable = 1 AND isHidden = 0 AND album IS NOT NULL
         GROUP BY album, artist
         ORDER BY album COLLATE NOCASE
     """)
@@ -44,7 +44,7 @@ interface LibraryDao {
 
     @Query("""
         SELECT * FROM songs
-        WHERE isAvailable = 1 
+        WHERE isAvailable = 1 AND isHidden = 0
           AND album = :albumTitle 
           AND (artist = :artist OR (artist IS NULL AND :artist IS NULL))
         ORDER BY discNumber ASC, trackNumber ASC, title COLLATE NOCASE
@@ -58,7 +58,7 @@ interface LibraryDao {
             COUNT(*) as songCount,
             COUNT(DISTINCT album) as albumCount
         FROM songs
-        WHERE isAvailable = 1 AND artist IS NOT NULL
+        WHERE isAvailable = 1 AND isHidden = 0 AND artist IS NOT NULL
         GROUP BY artist
         ORDER BY artist COLLATE NOCASE
     """)
@@ -71,7 +71,7 @@ interface LibraryDao {
             COUNT(*) as songCount,
             COUNT(DISTINCT album) as albumCount
         FROM songs
-        WHERE isAvailable = 1 AND artist IS NOT NULL
+        WHERE isAvailable = 1 AND isHidden = 0 AND artist IS NOT NULL
         GROUP BY artist
         ORDER BY artist COLLATE NOCASE
     """)
@@ -79,7 +79,7 @@ interface LibraryDao {
 
     @Query("""
         SELECT * FROM songs
-        WHERE isAvailable = 1 AND artist = :artistName
+        WHERE isAvailable = 1 AND isHidden = 0 AND artist = :artistName
         ORDER BY album COLLATE NOCASE, discNumber ASC, trackNumber ASC, title COLLATE NOCASE
     """)
     fun observeSongsByArtist(artistName: String): Flow<List<SongEntity>>
@@ -93,13 +93,13 @@ interface LibraryDao {
             MAX(coverUri) as coverUri,
             COUNT(*) as songCount
         FROM songs
-        WHERE isAvailable = 1 AND artist = :artistName AND album IS NOT NULL
+        WHERE isAvailable = 1 AND isHidden = 0 AND artist = :artistName AND album IS NOT NULL
         GROUP BY album
         ORDER BY album COLLATE NOCASE
     """)
     fun observeAlbumsByArtist(artistName: String): Flow<List<com.auralis.player.data.database.entity.AlbumEntity>>
 
-    @Query("SELECT * FROM songs WHERE isAvailable = 1 ORDER BY title COLLATE NOCASE")
+    @Query("SELECT * FROM songs WHERE isAvailable = 1 AND isHidden = 0 ORDER BY title COLLATE NOCASE")
     suspend fun getSongs(): List<SongEntity>
 
     @Query("SELECT * FROM songs ORDER BY title COLLATE NOCASE")
@@ -107,6 +107,20 @@ interface LibraryDao {
 
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun getById(id: String): SongEntity?
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE isAvailable = 1 AND isHidden = 1
+        ORDER BY title COLLATE NOCASE
+    """)
+    fun observeHiddenSongs(): Flow<List<SongEntity>>
+
+    @Query("""
+        SELECT * FROM songs
+        WHERE isAvailable = 1 AND isHidden = 1
+        ORDER BY title COLLATE NOCASE
+    """)
+    suspend fun getHiddenSongs(): List<SongEntity>
 
     /**
      * Busqueda insensible a mayusculas y acentos sobre la clave premormalizada
@@ -117,7 +131,7 @@ interface LibraryDao {
     @Query(
         """
         SELECT * FROM songs
-        WHERE isAvailable = 1
+        WHERE isAvailable = 1 AND isHidden = 0
           AND searchKey LIKE '%' || :query || '%'
         ORDER BY title COLLATE NOCASE
         """,
@@ -132,6 +146,9 @@ interface LibraryDao {
 
     @Query("DELETE FROM songs WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
+
+    @Query("UPDATE songs SET isHidden = :isHidden WHERE id = :id")
+    suspend fun setHidden(id: String, isHidden: Boolean)
 
     /**
      * Eliminacion logica por lotes: conserva playlists, favoritos e historico.

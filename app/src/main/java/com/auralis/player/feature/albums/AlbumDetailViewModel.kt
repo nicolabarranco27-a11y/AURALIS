@@ -101,4 +101,10 @@ class AlbumDetailViewModel @Inject constructor(
             favoritesRepository.toggleFavorite(song.id)
         }
     }
+
+    fun hideSong(song: Song) {
+        viewModelScope.launch {
+            libraryRepository.setSongHidden(song.id, true)
+        }
+    }
 }

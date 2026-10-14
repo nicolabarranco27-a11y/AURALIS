@@ -1,14 +1,40 @@
 package com.auralis.player.feature.playlists
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Menu
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,12 +45,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.auralis.player.core.common.format.formatSongCount
+import com.auralis.player.core.common.format.formatTotalDuration
+import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.ConfirmDeleteDialog
+import com.auralis.player.core.ui.components.CreatePlaylistDialog
+import com.auralis.player.core.ui.components.EditPlaylistDialog
 import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
-import com.auralis.player.domain.model.Playlist
+import com.auralis.player.domain.model.PlaylistSummary
 
 @Composable
 fun PlaylistsScreen(
@@ -36,8 +68,10 @@ fun PlaylistsScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val colors = ReproductorThemeTokens.colors
     val spacing = ReproductorThemeTokens.spacing
-    
+
     var showCreateDialog by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf<PlaylistSummary?>(null) }
+    var deleting by remember { mutableStateOf<PlaylistSummary?>(null) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -53,10 +87,13 @@ fun PlaylistsScreen(
             FloatingActionButton(
                 onClick = { showCreateDialog = true },
                 containerColor = colors.accent,
-                contentColor = Color.White,
                 shape = ReproductorThemeTokens.shapes.medium
             ) {
-                Text("+", style = AppType.title.copy(fontSize = 24.sp))
+                Icon(
+                    imageVector = Icons.Rounded.Add,
+                    contentDescription = "Crear playlist",
+                    tint = Color.White
+                )
             }
         }
     ) { innerPadding ->
@@ -70,13 +107,18 @@ fun PlaylistsScreen(
                     LoadingState(colors = colors)
                 }
                 state.playlists.isEmpty() -> {
-                    EmptyPlaylistsState(colors = colors)
+                    EmptyPlaylistsState(
+                        onCreateClick = { showCreateDialog = true },
+                        colors = colors,
+                        spacing = spacing
+                    )
                 }
                 else -> {
                     PlaylistsList(
                         playlists = state.playlists,
                         onPlaylistClick = onPlaylistClick,
-                        onDeleteClick = { viewModel.deletePlaylist(it) },
+                        onEditClick = { editing = it },
+                        onDeleteClick = { deleting = it },
                         colors = colors,
                         spacing = spacing
                     )
@@ -88,12 +130,39 @@ fun PlaylistsScreen(
     if (showCreateDialog) {
         CreatePlaylistDialog(
             onDismiss = { showCreateDialog = false },
-            onConfirm = { name ->
-                viewModel.createPlaylist(name)
+            onConfirm = { name, description ->
+                viewModel.createPlaylist(name, description)
                 showCreateDialog = false
             },
             colors = colors,
             spacing = spacing
+        )
+    }
+
+    editing?.let { playlist ->
+        EditPlaylistDialog(
+            currentName = playlist.name,
+            currentDescription = playlist.description,
+            onDismiss = { editing = null },
+            onConfirm = { name, description ->
+                viewModel.editPlaylist(playlist.id, name, description)
+                editing = null
+            },
+            colors = colors,
+            spacing = spacing
+        )
+    }
+
+    deleting?.let { playlist ->
+        ConfirmDeleteDialog(
+            title = "Eliminar playlist",
+            message = "¿Seguro que quieres eliminar \"${playlist.name}\"? Esta acción no se puede deshacer.",
+            onDismiss = { deleting = null },
+            onConfirm = {
+                viewModel.deletePlaylist(playlist.id)
+                deleting = null
+            },
+            colors = colors
         )
     }
 }
@@ -118,7 +187,7 @@ private fun PlaylistsHeader(
                 tint = colors.textSecondary
             )
         }
-        
+
         Spacer(modifier = Modifier.width(spacing.s))
 
         Text(
@@ -133,20 +202,22 @@ private fun PlaylistsHeader(
 
 @Composable
 private fun PlaylistsList(
-    playlists: List<Playlist>,
+    playlists: List<PlaylistSummary>,
     onPlaylistClick: (String) -> Unit,
-    onDeleteClick: (Playlist) -> Unit,
+    onEditClick: (PlaylistSummary) -> Unit,
+    onDeleteClick: (PlaylistSummary) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 80.dp)
+        contentPadding = PaddingValues(bottom = 96.dp)
     ) {
         items(playlists, key = { it.id.value }) { playlist ->
             PlaylistItem(
                 playlist = playlist,
                 onClick = { onPlaylistClick(playlist.id.value) },
+                onEdit = { onEditClick(playlist) },
                 onDelete = { onDeleteClick(playlist) },
                 colors = colors,
                 spacing = spacing
@@ -162,32 +233,28 @@ private fun PlaylistsList(
 
 @Composable
 private fun PlaylistItem(
-    playlist: Playlist,
+    playlist: PlaylistSummary,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = spacing.l, vertical = spacing.m),
+            .padding(start = spacing.l, end = spacing.s, top = spacing.s, bottom = spacing.s),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+        AuralisArtwork(
             modifier = Modifier
-                .size(52.dp)
-                .clip(ReproductorThemeTokens.shapes.small)
-                .background(colors.surfaceRaised),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "☰",
-                color = colors.accent.copy(alpha = 0.6f),
-                style = AppType.title.copy(fontSize = 20.sp)
-            )
-        }
+                .size(56.dp)
+                .clip(ReproductorThemeTokens.shapes.small),
+            artworkReference = playlist.coverReference
+        )
 
         Spacer(modifier = Modifier.width(spacing.m))
 
@@ -199,84 +266,89 @@ private fun PlaylistItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val subtitle = playlist.description?.takeIf { it.isNotBlank() }
+                ?: buildString {
+                    append(formatSongCount(playlist.songCount))
+                    if (playlist.totalDurationMs > 0) {
+                        append(" · ")
+                        append(formatTotalDuration(playlist.totalDurationMs))
+                    }
+                }
             Text(
-                text = "Playlist de usuario",
-                style = AppType.label.copy(fontSize = 10.sp),
+                text = subtitle,
+                style = AppType.label.copy(fontSize = 11.sp),
                 color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-        
-        IconButton(onClick = onDelete) {
-            Text("×", style = AppType.title, color = colors.onError.copy(alpha = 0.7f))
+
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = Icons.Rounded.MoreVert,
+                    contentDescription = "Opciones",
+                    tint = colors.textSecondary
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+                containerColor = colors.surfaceRaised
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Editar", style = AppType.body, color = colors.textPrimary) },
+                    onClick = {
+                        menuExpanded = false
+                        onEdit()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Eliminar", style = AppType.body, color = colors.onError) },
+                    onClick = {
+                        menuExpanded = false
+                        onDelete()
+                    }
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun CreatePlaylistDialog(
-    onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+private fun EmptyPlaylistsState(
+    onCreateClick: () -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    var name by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = colors.surfaceRaised,
-        title = {
-            Text(
-                text = "Nueva Playlist",
-                style = AppType.title,
-                color = colors.textPrimary
-            )
-        },
-        text = {
-            Column {
-                TextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    placeholder = { Text("Nombre de la playlist", style = AppType.body) },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = colors.accent,
-                        unfocusedIndicatorColor = colors.outline,
-                        cursorColor = colors.accent,
-                        focusedTextColor = colors.textPrimary,
-                        unfocusedTextColor = colors.textPrimary
-                    ),
-                    textStyle = AppType.body,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { if (name.isNotBlank()) onConfirm(name) },
-                enabled = name.isNotBlank()
-            ) {
-                Text("CREAR", style = AppType.label, color = if (name.isNotBlank()) colors.accent else colors.textSecondary)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("CANCELAR", style = AppType.label, color = colors.textSecondary)
-            }
-        }
-    )
-}
-
-@Composable
-private fun EmptyPlaylistsState(colors: AppColors) {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(spacing.xl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Rounded.QueueMusic,
+            contentDescription = null,
+            tint = colors.accentDim,
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(spacing.m))
         Text(
-            text = "No tienes playlists creadas",
+            text = "Aún no tienes playlists",
+            style = AppType.title,
+            color = colors.textPrimary
+        )
+        Spacer(modifier = Modifier.height(spacing.xs))
+        Text(
+            text = "Crea una para agrupar tus canciones favoritas.",
             style = AppType.body,
             color = colors.textSecondary
         )
+        Spacer(modifier = Modifier.height(spacing.l))
+        TextButton(onClick = onCreateClick) {
+            Text("CREAR PLAYLIST", style = AppType.label, color = colors.accent)
+        }
     }
 }

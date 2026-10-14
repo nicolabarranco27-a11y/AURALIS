@@ -63,6 +63,12 @@ class FavoritesViewModel @Inject constructor(
         }
     }
 
+    fun hideSong(song: Song) {
+        viewModelScope.launch {
+            libraryRepository.setSongHidden(song.id, true)
+        }
+    }
+
     fun addToQueue(song: Song) {
         playbackRepository.addSongToQueue(song)
     }

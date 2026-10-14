@@ -1,9 +1,13 @@
 package com.auralis.player.feature.player
 
+import androidx.compose.ui.graphics.Color
+import com.auralis.player.core.ui.theme.AuraFallbackColor
 import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.RepeatMode
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.SongId
+import com.auralis.player.domain.repository.ArtworkColorRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,7 +45,7 @@ class PlayerViewModelTest {
     @Test
     fun `sleep timer pausa la reproduccion al agotarse`() = runTest(dispatcher) {
         val repository = FakePlaybackRepository()
-        val viewModel = PlayerViewModel(repository)
+        val viewModel = PlayerViewModel(repository, FakeArtworkColorRepository())
 
         viewModel.startSleepTimer(5_000L)
         runCurrent()
@@ -57,7 +61,7 @@ class PlayerViewModelTest {
     @Test
     fun `cancelar el sleep timer evita la pausa`() = runTest(dispatcher) {
         val repository = FakePlaybackRepository()
-        val viewModel = PlayerViewModel(repository)
+        val viewModel = PlayerViewModel(repository, FakeArtworkColorRepository())
 
         viewModel.startSleepTimer(10_000L)
         runCurrent()
@@ -73,17 +77,59 @@ class PlayerViewModelTest {
     @Test
     fun `toggle play pause delega en el repositorio`() = runTest(dispatcher) {
         val repository = FakePlaybackRepository()
-        val viewModel = PlayerViewModel(repository)
+        val viewModel = PlayerViewModel(repository, FakeArtworkColorRepository())
 
         viewModel.togglePlayPause()
 
         assertTrue(repository.playCalled)
     }
 
+    @Test
+    fun `el aura usa el color de respaldo cuando no hay caratula`() = runTest(dispatcher) {
+        val repository = FakePlaybackRepository()
+        val viewModel = PlayerViewModel(repository, FakeArtworkColorRepository())
+
+        runCurrent()
+
+        assertEquals(AuraFallbackColor, viewModel.artworkAura.value)
+    }
+
+    @Test
+    fun `el aura toma el color dominante de la caratula`() = runTest(dispatcher) {
+        val repository = FakePlaybackRepository()
+        val colorRepository = FakeArtworkColorRepository(color = 0xFF3355AA.toInt())
+        val viewModel = PlayerViewModel(repository, colorRepository)
+
+        repository.emit(
+            PlaybackState(currentSong = song(coverReference = "content://art/1"))
+        )
+        runCurrent()
+
+        assertEquals(Color(0xFF3355AA.toInt()), viewModel.artworkAura.value)
+    }
+
+    private fun song(coverReference: String?): Song = Song(
+        id = SongId("1"),
+        sourceUri = "content://song/1",
+        title = "Cancion",
+        coverReference = coverReference,
+    )
+
+    private class FakeArtworkColorRepository(
+        private val color: Int? = null,
+    ) : ArtworkColorRepository {
+        override suspend fun dominantColorFor(artworkReference: String?): Int? =
+            if (artworkReference == null) null else color
+    }
+
     private class FakePlaybackRepository : PlaybackRepository {
         private val _state = MutableStateFlow(PlaybackState.IDLE)
         var playCalled = false
         var pauseCalled = false
+
+        fun emit(state: PlaybackState) {
+            _state.value = state
+        }
 
         override fun observePlaybackState(): Flow<PlaybackState> = _state.asStateFlow()
         override suspend fun getCurrentState(): PlaybackState = _state.value

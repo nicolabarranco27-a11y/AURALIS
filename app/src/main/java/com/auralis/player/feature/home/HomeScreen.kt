@@ -3,6 +3,7 @@ package com.auralis.player.feature.home
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -11,6 +12,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -19,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +33,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
@@ -49,14 +54,23 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.R
-import com.auralis.player.core.common.format.formatDuration
+import com.auralis.player.core.common.format.formatSongCount
+import com.auralis.player.core.common.format.formatTotalDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
+import com.auralis.player.core.ui.components.ConfirmDeleteDialog
+import com.auralis.player.core.ui.components.CreatePlaylistDialog
+import com.auralis.player.core.ui.components.MiniPlayerBar
 import com.auralis.player.core.ui.components.QueueFeedbackOverlay
+import com.auralis.player.core.ui.components.SongActionsSheet
+import com.auralis.player.core.ui.components.SongListItem
+import com.auralis.player.core.ui.components.songActions
 import com.auralis.player.core.ui.components.LoadingState
 import com.auralis.player.core.ui.theme.AppColors
 import com.auralis.player.core.ui.theme.AppSpacing
 import com.auralis.player.core.ui.theme.AppType
 import com.auralis.player.core.ui.theme.ReproductorThemeTokens
+import com.auralis.player.domain.model.PlaylistId
+import com.auralis.player.domain.model.PlaylistSummary
 import com.auralis.player.domain.model.Song
 import com.auralis.player.feature.folders.MusicFoldersSheet
 import com.auralis.player.feature.folders.rememberFolderPickerLauncher
@@ -65,6 +79,7 @@ import com.auralis.player.feature.folders.rememberFolderPickerLauncher
 fun HomeScreen(
     onMenuClick: () -> Unit,
     onPlayerClick: () -> Unit,
+    onPlaylistClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
@@ -79,6 +94,7 @@ fun HomeScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var showQueueFeedback by remember { mutableStateOf(false) }
+    var actionSong by remember { mutableStateOf<Song?>(null) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         viewModel.onPermissionResult(granted)
@@ -200,6 +216,10 @@ fun HomeScreen(
                                     showQueueFeedback = true
                                 },
                                 onToggleFavorite = { viewModel.toggleFavorite(it) },
+                                onLongPress = { actionSong = it },
+                                onPlaylistClick = onPlaylistClick,
+                                onCreatePlaylist = { name, description -> viewModel.createPlaylist(name, description) },
+                                onDeletePlaylist = { viewModel.deletePlaylist(it) },
                                 onPlayPauseClick = { viewModel.togglePlayPause() },
                                 onPlayerClick = onPlayerClick,
                                 onSeek = { viewModel.seekTo(it) },
@@ -227,6 +247,23 @@ fun HomeScreen(
             onAddFolder = { openFolderPicker() },
             onRemoveFolder = { viewModel.removeFolder(it) },
             onDismiss = { showFolderSheet = false }
+        )
+    }
+
+    actionSong?.let { song ->
+        SongActionsSheet(
+            song = song,
+            actions = songActions(
+                song = song,
+                onPlay = { viewModel.onSongClick(song) },
+                onAddToQueue = {
+                    viewModel.addToQueue(song)
+                    showQueueFeedback = true
+                },
+                onToggleFavorite = { viewModel.toggleFavorite(song) },
+                onHide = { viewModel.hideSong(song) },
+            ),
+            onDismiss = { actionSong = null },
         )
     }
 }
@@ -481,6 +518,10 @@ private fun MainContent(
     onSongClick: (Song) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleFavorite: (Song) -> Unit,
+    onLongPress: (Song) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onCreatePlaylist: (String, String?) -> Unit,
+    onDeletePlaylist: (PlaylistId) -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -490,7 +531,18 @@ private fun MainContent(
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    var selectedFilter by remember { mutableStateOf("Todas") }
+    var selectedFilter by rememberSaveable { mutableStateOf("Todas") }
+    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var deletingPlaylist by remember { mutableStateOf<PlaylistSummary?>(null) }
+    var revealedPlaylistId by remember { mutableStateOf<String?>(null) }
+
+    // El tacho se oculta solo a los 3 segundos si el usuario no interactua.
+    LaunchedEffect(revealedPlaylistId) {
+        if (revealedPlaylistId != null) {
+            delay(3000)
+            revealedPlaylistId = null
+        }
+    }
 
     val filteredSongs = remember(state.songs, selectedFilter, state.favoriteIds) {
         when (selectedFilter) {
@@ -499,7 +551,16 @@ private fun MainContent(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(revealedPlaylistId) {
+                // Tocar cualquier parte de la pantalla cancela la eliminacion.
+                if (revealedPlaylistId != null) {
+                    detectTapGestures(onTap = { revealedPlaylistId = null })
+                }
+            }
+    ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 140.dp)
@@ -531,15 +592,29 @@ private fun MainContent(
             item {
                 Spacer(modifier = Modifier.height(spacing.s))
                 SectionHeader(
-                    title = "CANCIONES",
+                    title = when (selectedFilter) {
+                        "Favoritos" -> "FAVORITOS"
+                        "Playlists" -> "PLAYLISTS"
+                        else -> "CANCIONES"
+                    },
                     subtitle = null,
                     trailingContent = {
-                        IconButton(onClick = onToggleShuffle) {
-                            Icon(
-                                imageVector = Icons.Rounded.Shuffle,
-                                contentDescription = "Aleatorio",
-                                tint = if (state.playbackState.shuffleEnabled) colors.accent else colors.textSecondary
-                            )
+                        if (selectedFilter == "Playlists") {
+                            IconButton(onClick = { showCreatePlaylistDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = "Crear playlist",
+                                    tint = colors.accent
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onToggleShuffle) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Shuffle,
+                                    contentDescription = "Aleatorio",
+                                    tint = if (state.playbackState.shuffleEnabled) colors.accent else colors.textSecondary
+                                )
+                            }
                         }
                     },
                     colors = colors,
@@ -569,44 +644,86 @@ private fun MainContent(
                 }
             }
 
-            items(filteredSongs, key = { it.id.value }) { song ->
-                val isCurrent = state.playbackState.currentSong?.id == song.id
-                SongItem(
-                    song = song,
-                    isCurrent = isCurrent,
-                    onClick = { onSongClick(song) },
-                    onSwipeRight = { onAddToQueue(song) },
-                    onToggleFavorite = { onToggleFavorite(song) },
-                    colors = colors,
-                    spacing = spacing
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = spacing.l),
-                    thickness = 0.5.dp,
-                    color = colors.outline.copy(alpha = 0.5f)
-                )
-            }
-            
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = spacing.xl),
-                    contentAlignment = Alignment.Center
-                ) {
-                    TextButton(onClick = onScanClick) {
-                        Text(
-                            text = "RE-ESCANEAR BIBLIOTECA",
-                            style = AppType.label,
-                            color = colors.accentDim
+            if (selectedFilter == "Playlists") {
+                if (state.playlists.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.l, vertical = spacing.xl),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Aún no tienes playlists",
+                                style = AppType.body,
+                                color = colors.textSecondary
+                            )
+                            Spacer(modifier = Modifier.height(spacing.s))
+                            TextButton(onClick = { showCreatePlaylistDialog = true }) {
+                                Text("CREAR PLAYLIST", style = AppType.label, color = colors.accent)
+                            }
+                        }
+                    }
+                } else {
+                    items(state.playlists, key = { it.id.value }) { playlist ->
+                        PlaylistSummaryItem(
+                            playlist = playlist,
+                            revealed = revealedPlaylistId == playlist.id.value,
+                            onClick = { onPlaylistClick(playlist.id.value) },
+                            onReveal = { revealedPlaylistId = playlist.id.value },
+                            onCancel = { revealedPlaylistId = null },
+                            onDelete = { deletingPlaylist = playlist },
+                            colors = colors,
+                            spacing = spacing
                         )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = spacing.l),
+                            thickness = 0.5.dp,
+                            color = colors.outline.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            } else {
+                items(filteredSongs, key = { it.id.value }) { song ->
+                    val isCurrent = state.playbackState.currentSong?.id == song.id
+                    SongListItem(
+                        song = song,
+                        isCurrent = isCurrent,
+                        onClick = { onSongClick(song) },
+                        onLongClick = { onLongPress(song) },
+                        onSwipeRight = { onAddToQueue(song) },
+                        onToggleFavorite = { onToggleFavorite(song) },
+                        colors = colors,
+                        spacing = spacing
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = spacing.l),
+                        thickness = 0.5.dp,
+                        color = colors.outline.copy(alpha = 0.5f)
+                    )
+                }
+
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = spacing.xl),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        TextButton(onClick = onScanClick) {
+                            Text(
+                                text = "RE-ESCANEAR BIBLIOTECA",
+                                style = AppType.label,
+                                color = colors.accentDim
+                            )
+                        }
                     }
                 }
             }
         }
 
         if (state.playbackState.currentSong != null) {
-            PlaybackBar(
+            MiniPlayerBar(
                 state = state.playbackState,
                 onPlayPauseClick = onPlayPauseClick,
                 onPlayerClick = onPlayerClick,
@@ -621,155 +738,30 @@ private fun MainContent(
             )
         }
     }
-}
 
-@Composable
-private fun PlaybackBar(
-    state: com.auralis.player.domain.model.PlaybackState,
-    onPlayPauseClick: () -> Unit,
-    onPlayerClick: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onSkipNext: () -> Unit,
-    onSkipPrevious: () -> Unit,
-    colors: AppColors,
-    spacing: AppSpacing,
-    modifier: Modifier = Modifier
-) {
-    val duration = state.durationMs ?: 0L
-    val progress = if (duration > 0) (state.positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f) else 0f
-    val swipeOffsetX = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
+    if (showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { showCreatePlaylistDialog = false },
+            onConfirm = { name, description ->
+                onCreatePlaylist(name, description)
+                showCreatePlaylistDialog = false
+            },
+            colors = colors,
+            spacing = spacing,
+        )
+    }
 
-    Surface(
-        onClick = onPlayerClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = spacing.s),
-        shape = RoundedCornerShape(16.dp),
-        color = colors.surfaceRaised,
-        tonalElevation = 8.dp,
-        shadowElevation = 8.dp
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { },
-                            onHorizontalDrag = { _, dragAmount ->
-                                scope.launch {
-                                    // Resistencia sutil (0.8f) para un toque premium
-                                    swipeOffsetX.snapTo(swipeOffsetX.value + dragAmount * 0.8f)
-                                }
-                            },
-                            onDragEnd = {
-                                scope.launch {
-                                    if (swipeOffsetX.value > 150f) {
-                                        // Cambio inmediato
-                                        onSkipPrevious()
-                                        // Animación de salida y entrada ultra rápida
-                                        launch {
-                                            swipeOffsetX.animateTo(
-                                                targetValue = 800f,
-                                                animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
-                                            )
-                                            swipeOffsetX.snapTo(-800f)
-                                            swipeOffsetX.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec = spring(stiffness = Spring.StiffnessHigh)
-                                            )
-                                        }
-                                    } else if (swipeOffsetX.value < -150f) {
-                                        // Cambio inmediato
-                                        onSkipNext()
-                                        // Animación de salida y entrada ultra rápida
-                                        launch {
-                                            swipeOffsetX.animateTo(
-                                                targetValue = -800f,
-                                                animationSpec = tween(durationMillis = 150, easing = LinearOutSlowInEasing)
-                                            )
-                                            swipeOffsetX.snapTo(800f)
-                                            swipeOffsetX.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec = spring(stiffness = Spring.StiffnessHigh)
-                                            )
-                                        }
-                                    } else {
-                                        // Regreso suave al centro (conservado)
-                                        swipeOffsetX.animateTo(
-                                            targetValue = 0f,
-                                            animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
-                                        )
-                                    }
-                                }
-                            },
-                            onDragCancel = {
-                                scope.launch {
-                                    swipeOffsetX.animateTo(0f)
-                                }
-                            }
-                        )
-                    }
-                    .graphicsLayer { translationX = swipeOffsetX.value }
-                    .padding(horizontal = spacing.m, vertical = spacing.s),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                AuralisArtwork(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    artworkReference = state.currentSong?.coverReference
-                )
-                
-                Spacer(modifier = Modifier.width(spacing.m))
-                
-                AnimatedContent(
-                    targetState = state.currentSong,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
-                    },
-                    modifier = Modifier.weight(1f),
-                    label = "SongMetadataTransition"
-                ) { song ->
-                    Column {
-                        Text(
-                            text = song?.title ?: "",
-                            style = AppType.body.copy(fontWeight = FontWeight.Bold, fontSize = 14.sp),
-                            color = colors.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = song?.artist?.uppercase() ?: "UNKNOWN",
-                            style = AppType.label.copy(fontSize = 10.sp),
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-                
-                IconButton(onClick = onPlayPauseClick) {
-                    Icon(
-                        imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pausa" else "Reproducir",
-                        tint = colors.textPrimary
-                    )
-                }
-            }
-            
-            if (duration > 0) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(3.dp),
-                    color = colors.accent,
-                    trackColor = colors.outline.copy(alpha = 0.2f)
-                )
-            }
-        }
+    deletingPlaylist?.let { playlist ->
+        ConfirmDeleteDialog(
+            title = "Eliminar playlist",
+            message = "¿Seguro que quieres eliminar \"${playlist.name}\"? Esta acción no se puede deshacer.",
+            onDismiss = { deletingPlaylist = null },
+            onConfirm = {
+                onDeletePlaylist(playlist.id)
+                deletingPlaylist = null
+            },
+            colors = colors
+        )
     }
 }
 
@@ -875,13 +867,82 @@ private fun QuickAccessCard(
 }
 
 @Composable
+private fun PlaylistSummaryItem(
+    playlist: PlaylistSummary,
+    revealed: Boolean,
+    onClick: () -> Unit,
+    onReveal: () -> Unit,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { if (revealed) onCancel() else onClick() },
+                onLongClick = { if (revealed) onCancel() else onReveal() }
+            )
+            .padding(horizontal = spacing.l, vertical = spacing.s),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AuralisArtwork(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(10.dp)),
+            artworkReference = playlist.coverReference
+        )
+        Spacer(modifier = Modifier.width(spacing.m))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = playlist.name,
+                style = AppType.body.copy(fontWeight = FontWeight.Medium),
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val subtitle = buildString {
+                append(formatSongCount(playlist.songCount))
+                if (playlist.totalDurationMs > 0) {
+                    append(" · ")
+                    append(formatTotalDuration(playlist.totalDurationMs))
+                }
+            }
+            Text(
+                text = subtitle,
+                style = AppType.label.copy(fontSize = 12.sp),
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        AnimatedVisibility(
+            visible = revealed,
+            enter = fadeIn() + expandHorizontally(),
+            exit = fadeOut() + shrinkHorizontally()
+        ) {
+            IconButton(
+                onClick = onDelete
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.DeleteOutline,
+                    contentDescription = "Eliminar playlist",
+                    tint = colors.onError
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun FilterChipsRow(
     selectedFilter: String,
     onFilterSelected: (String) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
-    val filters = listOf("Todas", "Favoritos")
+    val filters = listOf("Todas", "Favoritos", "Playlists")
 
     LazyRow(
         contentPadding = PaddingValues(horizontal = spacing.l),
@@ -982,115 +1043,6 @@ private fun FullScreenState(
                     text = secondaryButtonText,
                     style = AppType.label,
                     color = colors.textSecondary
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SongItem(
-    song: Song,
-    isCurrent: Boolean,
-    onClick: () -> Unit,
-    onSwipeRight: () -> Unit,
-    onToggleFavorite: () -> Unit,
-    colors: AppColors,
-    spacing: AppSpacing
-) {
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    val scope = rememberCoroutineScope()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { _, dragAmount ->
-                        offsetX = (offsetX + dragAmount).coerceIn(0f, 300f)
-                    },
-                    onDragEnd = {
-                        if (offsetX > 150f) {
-                            onSwipeRight()
-                        }
-                        scope.launch {
-                            Animatable(offsetX).animateTo(
-                                targetValue = 0f,
-                                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                            ) {
-                                offsetX = value
-                            }
-                        }
-                    },
-                    onDragCancel = {
-                        scope.launch {
-                            Animatable(offsetX).animateTo(0f) {
-                                offsetX = value
-                            }
-                        }
-                    }
-                )
-            }
-            .background(if (offsetX > 0) colors.accent.copy(alpha = 0.2f * (offsetX / 100f).coerceAtMost(1f)) else Color.Transparent)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .graphicsLayer { translationX = offsetX }
-                .background(if (isCurrent) colors.surfaceRaised.copy(alpha = 0.5f) else colors.background)
-                .clickable(enabled = offsetX == 0f, onClick = onClick)
-                .padding(horizontal = spacing.l, vertical = spacing.m),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AuralisArtwork(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(ReproductorThemeTokens.shapes.small),
-                artworkReference = song.coverReference
-            )
-
-            Spacer(modifier = Modifier.width(spacing.m))
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = song.title,
-                    style = AppType.body.copy(fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium),
-                    color = if (isCurrent) colors.accent else colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = (song.artist ?: "Artista desconocido").uppercase(),
-                    style = AppType.label.copy(fontSize = 10.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Normal),
-                    color = if (isCurrent) colors.accentSecondary.copy(alpha = 0.7f) else colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Spacer(modifier = Modifier.width(spacing.s))
-
-            song.durationMs?.let { duration ->
-                Text(
-                    text = formatDuration(duration),
-                    style = AppType.timer,
-                    color = colors.textSecondary,
-                    fontSize = 11.sp
-                )
-            }
-
-            IconButton(
-                onClick = onToggleFavorite,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    contentDescription = if (song.isFavorite) "Quitar de favoritos" else "Añadir a favoritos",
-                    tint = if (song.isFavorite) Color(0xFFE53935) else colors.textSecondary.copy(alpha = 0.6f),
-                    modifier = Modifier.size(20.dp)
                 )
             }
         }

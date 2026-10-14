@@ -16,9 +16,10 @@ Auralis no es solo otro reproductor de música; es una herramienta de escucha **
 
 ## 🗺 Roadmap de Producto
 
-> **Importante**: La última release es **v0.1.0** (`59403f7`). El contenido de la **v0.2.0** está preparado en el working tree (2026-10-12) con `versionName = "0.2.0"` / `versionCode = 2`; resta el commit y el tag (ver `docs/RELEASE_PLAN.md`).
+> **Importante**: La última release es **v0.2.0** (`8304e58` + tag `v0.2.0`). El pulido visual del reproductor (aura reactiva al ritmo, controles con íconos, seek) y la gestión de biblioteca/playlists ya están **consolidados en `origin/main`** (2026-10-14; ver `docs/RELEASE_PLAN.md`).
 
-- [ ] **v0.2.0** *(preparada, commit/tag pendientes)*: Escaneo automático + carpetas adicionales, búsqueda inteligente, favoritos en filas y vista dedicada, ecualizador real, drawer activo, ajustes reales con tema persistido, nuevo logo/ícono.
+- [x] **v0.2.0** *(consolidada y subida a `origin`)*: Escaneo automático + carpetas adicionales, búsqueda inteligente, favoritos en filas y vista dedicada, ecualizador real, drawer activo, ajustes reales con tema persistido, nuevo logo/ícono.
+- [x] **Efectos visuales del reproductor** *(consolidados en `origin/main`)*: aura que late al ritmo real de la carátula, controles con `Icons.Rounded`, barra de seek rediseñada, mini-player con progreso interactivo y barra inferior unificada.
 - [ ] **v0.5.0**: Pantalla de Favoritos y mejora de metadatos.
 - [ ] **v0.6.0**: Soporte para Android Auto.
 - [ ] **v0.7.0**: Visualizadores de audio a pantalla completa.

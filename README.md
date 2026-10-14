@@ -2,7 +2,7 @@
 
 Auralis es un reproductor de música moderno, elegante y sin anuncios para Android. Diseñado con una arquitectura limpia, sigue las mejores prácticas de desarrollo Android y ofrece una experiencia de usuario fluida con Material Design 3.
 
-> **Última release**: v0.1.0 (`59403f7`). El contenido de **v0.2.0** (escaneo por defecto + carpetas, ecualizador, búsqueda, Ajustes, nuevo logo/ícono, tests instrumentados, CI) está preparado en el working tree (2026-10-12); `versionName = "0.2.0"` / `versionCode = 2`. Commit y tag **pendientes**. Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
+> **Última release**: v0.2.0 (`8304e58` + tag `v0.2.0`). `versionName = "0.2.0"` / `versionCode = 2`. Sobre esa release se consolidaron y subieron a `origin/main` (2026-10-14) el pulido visual del reproductor —**aura que late al ritmo real de la canción** (sin permisos), controles con íconos, seek rediseñado y **barra inferior unificada con progreso interactivo**— y la **gestión de biblioteca/playlists** (ocultar canciones con `isHidden`/Room v5, chip "Playlists" en Inicio y rediseño de Playlists). Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
 
 ## 📱 Capturas de Pantalla
 
@@ -27,16 +27,18 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
   - 🎵 **Canciones** - Lista completa
   - 💿 **Álbumes** - Agrupados por álbum con detalle
   - 🎤 **Artistas** - Por artista con sus álbumes
-  - 📋 **Playlists** - **CRUD completo**: crear, renombrar, eliminar, añadir/quitar canciones, reproducción integrada
+  - 📋 **Playlists** - **CRUD completo**: crear, renombrar, eliminar, añadir/quitar canciones, reordenar y reproducción integrada
   - ❤️ **Favoritos** - Persistidos en Room con vista dedicada y toggle en las filas
+  - 🙈 **Ocultar canciones** - Oculta (reversible, sin borrar el archivo) canciones de la biblioteca con long-press; restáuralas desde Ajustes → Canciones ocultas
 
 ### Interfaz de Usuario
 - **Material Design 3** - Diseño moderno y consistente
 - **Jetpack Compose** - UI declarativa y reactiva
 - **Tema personalizado** - Colores, tipografía, formas y motion tokens (con selección de tema persistida)
 - **Navegación por cajón (Drawer)** - Acceso rápido a todas las secciones, con item activo resaltado
-- **Barra de reproducción persistente** - Mini-player con indicador de progreso (`LinearProgressIndicator`)
+- **Barra de reproducción persistente** - Mini-player con **línea de progreso interactiva** (pulsar/arrastrar para saltar; tiempo solo al ajustar)
 - **Pantalla de reproducción completa** - Carátula tipo vinilo, controles, seek y visualizador
+- **Aura reactiva** - El vinilo se rodea de un aura animada derivada del color dominante de la carátula que **late al ritmo real de la canción** (graves + agudos, sin permisos), con movimiento fluido y respaldo si no hay portada
 - **Ecualizador de 5 bandas** - AudioFX con presets y persistencia
 
 ### Arquitectura y Calidad

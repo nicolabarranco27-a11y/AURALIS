@@ -9,11 +9,42 @@ import com.auralis.player.data.database.entity.PlaylistEntity
 import com.auralis.player.data.database.entity.PlaylistSongEntity
 import kotlinx.coroutines.flow.Flow
 
+/** Proyeccion con estadisticas por playlist (canciones visibles y duracion). */
+data class PlaylistSummaryRow(
+    val id: String,
+    val name: String,
+    val description: String?,
+    val songCount: Int,
+    val totalDurationMs: Long,
+    val coverUri: String?,
+)
+
 @Dao
 interface PlaylistDao {
 
     @Query("SELECT * FROM playlists ORDER BY name COLLATE NOCASE")
     fun observePlaylists(): Flow<List<PlaylistEntity>>
+
+    @Query(
+        """
+        SELECT p.id AS id,
+               p.name AS name,
+               p.description AS description,
+               (SELECT COUNT(*) FROM playlist_songs ps
+                    JOIN songs s ON s.id = ps.songId
+                    WHERE ps.playlistId = p.id AND s.isHidden = 0) AS songCount,
+               (SELECT COALESCE(SUM(s.durationMs), 0) FROM playlist_songs ps
+                    JOIN songs s ON s.id = ps.songId
+                    WHERE ps.playlistId = p.id AND s.isHidden = 0) AS totalDurationMs,
+               (SELECT s.coverUri FROM playlist_songs ps
+                    JOIN songs s ON s.id = ps.songId
+                    WHERE ps.playlistId = p.id AND s.isHidden = 0
+                    ORDER BY ps.position LIMIT 1) AS coverUri
+        FROM playlists p
+        ORDER BY p.name COLLATE NOCASE
+        """
+    )
+    fun observePlaylistSummaries(): Flow<List<PlaylistSummaryRow>>
 
     @Query("SELECT * FROM playlists WHERE id = :id")
     suspend fun getPlaylist(id: String): PlaylistEntity?
@@ -23,6 +54,9 @@ interface PlaylistDao {
 
     @Query("UPDATE playlists SET name = :name, updatedAtEpochMs = :updatedAtEpochMs WHERE id = :id")
     suspend fun renamePlaylist(id: String, name: String, updatedAtEpochMs: Long)
+
+    @Query("UPDATE playlists SET description = :description, updatedAtEpochMs = :updatedAtEpochMs WHERE id = :id")
+    suspend fun updateDescription(id: String, description: String?, updatedAtEpochMs: Long)
 
     @Query("DELETE FROM playlists WHERE id = :id")
     suspend fun deletePlaylist(id: String)
@@ -43,7 +77,7 @@ interface PlaylistDao {
     @Query("""
         SELECT s.* FROM songs s
         JOIN playlist_songs ps ON s.id = ps.songId
-        WHERE ps.playlistId = :playlistId
+        WHERE ps.playlistId = :playlistId AND s.isHidden = 0
         ORDER BY ps.position
     """)
     fun observePlaylistSongs(playlistId: String): Flow<List<com.auralis.player.data.database.entity.SongEntity>>

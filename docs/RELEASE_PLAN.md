@@ -1,7 +1,7 @@
 # Plan de Lanzamiento (Release Plan) - v1.0.0
 
-**Última versión entregable (release)**: v0.1.0 (`59403f7`)
-**Repositorio**: contenido de **v0.2.0** preparado en el working tree (2026-10-12); `versionName = "0.2.0"` / `versionCode = 2`. Commit y tag `v0.2.0` **pendientes** (por ahora no se toca `git`).
+**Última versión entregable (release)**: v0.2.0 (`8304e58` + tag `v0.2.0`)
+**Repositorio**: v0.2.0 está consolidada en el commit `8304e58` con tag anotado `v0.2.0`. El pulido visual del reproductor (**aura reactiva al ritmo**, controles con íconos, seek) y la **gestión de biblioteca/playlists** (ocultar canciones Room v5, chip/rediseño de Playlists) se **consolidaron y subieron a `origin/main`** (2026-10-14).
 
 > El plan hacia v1.0.0 se mantiene, pero los hitos se han ajustado al estado real del repositorio.
 
@@ -9,7 +9,7 @@
 
 ## 🧱 Bloque previo al Milestone 1: Consolidación (v0.2.0)
 
-Estos cambios están **implementados**. Solo resta **crear el commit y el tag `v0.2.0`** (el bump de versión ya está hecho) antes de iniciar el Milestone 1.
+La consolidación de v0.2.0 está **hecha** (commit `8304e58` + tag `v0.2.0`) y **subida a `origin/main`**, junto con los efectos visuales del reproductor y la gestión de biblioteca/playlists (2026-10-14). Bloque cerrado.
 
 ### Funcionalidad
 - [x] Búsqueda con Autocomplete (Home)
@@ -26,7 +26,11 @@ Estos cambios están **implementados**. Solo resta **crear el commit y el tag `v
 ### UI/UX
 - [x] `AuralisArtwork` con fallback `MusicNote`
 - [x] PlayerScreen rediseñado (vinilo + glow + visualizador)
-- [x] Mini-player rediseñado (`LinearProgressIndicator`)
+- [x] Mini-player rediseñado con progreso interactivo (scrub) + barra inferior unificada
+- [x] Aura reactiva al ritmo real (graves + agudos, sin permisos)
+- [x] Fila de canción unificada (`SongListItem`) + `SongActionsSheet`
+- [x] Ocultar canciones (reversible, Room v5) + pantalla "Canciones ocultas"
+- [x] Playlists: estadísticas, edición con descripción y eliminar desde Inicio
 - [x] Iconos Material Rounded
 - [x] Nuevo logo/ícono de app + versión en el Drawer
 
@@ -76,7 +80,7 @@ Estos cambios están **implementados**. Solo resta **crear el commit y el tag `v
 
 ## 🚀 Proceso de Release
 
-1. Verificar que el working tree está limpio (o consolidar cambios pendientes).
+1. Verificar que el working tree está limpio (`git status`).
 2. Incrementar `versionCode` y `versionName` en `app/build.gradle.kts`.
 3. Actualizar `CHANGELOG.md` moviendo `[Unreleased]` a la versión final fechada.
 4. Ejecutar `./gradlew bundleRelease` para generar el AAB.
