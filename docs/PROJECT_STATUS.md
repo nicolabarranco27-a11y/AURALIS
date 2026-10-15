@@ -207,4 +207,4 @@ Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 | 2026-10-12 | (consolidación) | Features core + nuevo logo/ícono + versión en drawer + POST_NOTIFICATIONS + tests instrumentados + CI matriz |
 | 2026-10-12 | `8304e58` | v0.2.0: escaneo automático por defecto + carpetas adicionales (SAF); tag `v0.2.0` (subido a `origin`) |
 | 2026-10-14 | (consolidación) | Pulido visual del reproductor (aura reactiva al ritmo, seek, mini-player scrub) + gestión de biblioteca/playlists (ocultar canciones, chip Playlists) — **subida a `origin/main`** |
-| 2026-10-15 | (consolidación) | Catálogo por carpetas seleccionadas (`sourceFolderUri`, Room v6, vista de carpetas + cola acotada), Acceso rápido por más reproducidas, blindajes anti-vaciado de la biblioteca y optimización de Inicio para gama media-baja — **subida a `origin/main`** |
+| 2026-10-15 | `2106d9c` | Catálogo por carpetas seleccionadas (`sourceFolderUri`, Room v6, vista de carpetas + cola acotada), Acceso rápido por más reproducidas, blindajes anti-vaciado de la biblioteca y optimización de Inicio para gama media-baja — **subida a `origin/main`** |
