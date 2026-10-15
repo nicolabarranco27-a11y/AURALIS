@@ -9,12 +9,14 @@ import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.QueueItem
 import com.auralis.player.domain.model.RepeatMode
 import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.repository.LibraryRepository
 import com.auralis.player.domain.repository.PlaybackRepository
 import com.auralis.player.feature.playback.MusicServiceConnection
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -22,7 +24,8 @@ import javax.inject.Singleton
 
 @Singleton
 class Media3PlaybackRepository @Inject constructor(
-    private val serviceConnection: MusicServiceConnection
+    private val serviceConnection: MusicServiceConnection,
+    private val libraryRepository: LibraryRepository,
 ) : PlaybackRepository {
 
     private var lastQueuedIndex: Int = -1
@@ -31,6 +34,23 @@ class Media3PlaybackRepository @Inject constructor(
     // (costoso con bibliotecas grandes) se hace en Default y se vuelve a Main
     // para invocar al controller.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** Ultima cancion contada; evita recontar al pausar/reanudar. */
+    private var lastCountedSongId: String? = null
+
+    init {
+        // Cuenta una reproduccion por cancion (una vez por sesion continua)
+        // para alimentar el "mas populares" de Inicio.
+        scope.launch {
+            serviceConnection.playbackState.collect { state ->
+                val song = state.currentSong
+                if (state.isPlaying && song != null && song.id.value != lastCountedSongId) {
+                    lastCountedSongId = song.id.value
+                    libraryRepository.registerPlay(song.id, System.currentTimeMillis())
+                }
+            }
+        }
+    }
 
     override fun observePlaybackState(): Flow<PlaybackState> = serviceConnection.playbackState
 

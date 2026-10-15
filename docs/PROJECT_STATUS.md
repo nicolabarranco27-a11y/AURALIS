@@ -1,11 +1,16 @@
 # Estado del Proyecto - Auralis
 
-**Fecha de última auditoría**: 2026-10-14
+**Fecha de última auditoría**: 2026-10-15
+
 **Última versión entregable (release)**: v0.2.0 (`8304e58` + tag `v0.2.0`, subida a `origin/main`)
 **Versión en build.gradle.kts**: `versionName = "0.2.0"`, `versionCode = 2`
 **Estado de `main` (consolidado)**: **gestión de biblioteca, playlists y vida visual del reproductor** (2026-10-13/14): ocultar/restaurar canciones (`isHidden`, Room v5), fila de canción unificada (`SongListItem` + `SongActionsSheet`), chip "Playlists" en Inicio (crear + **eliminar por long-press**: tacho a la derecha, confirmación minimalista, auto-ocultado a los 3 s y cancelable al tocar cualquier parte) y rediseño completo del apartado de Playlists (estadísticas, edición con descripción, reordenación). Incluye los efectos visuales del reproductor: **aura reactiva al ritmo real de la canción** (`RhythmAudioProcessor` + `PlaybackEnergy`, sin permisos, respaldo rojo `#C62828`), seek con **thumb de un solo color sólido**, controles `Icons.Rounded` y **mini-player con progreso interactivo (scrub)** y refresco de posición cada 500 ms.
 
 > **Nota de versionado**: v0.2.0 está consolidada en el commit `8304e58` con el tag anotado `v0.2.0`. `main` incluye la gestión de biblioteca/playlists y los efectos visuales del reproductor, **consolidados y subidos a `origin/main` (2026-10-14)**.
+>
+> **Consolidado en `origin/main` (2026-10-15)**: **catálogo por carpetas seleccionadas** (`sourceFolderUri`/Room v6), **Acceso rápido = más reproducidas**, **navegación persistente de carpetas en Inicio** (fila persistente, colapso de carpeta activa, persistencia entre chips, auto-scroll), **blindajes** para evitar el "vacío" de la biblioteca por escaneo sin resultados y para desacoplar las playlists del estado vacío de Inicio, y **optimización de rendimiento para gama media-baja** (los *ticks* de reproducción dejan de recalcular los derivados de biblioteca).
+>
+> **Último APK de debug (consolidación 2026-10-15)**: `Auralis-debug.apk` = **25.604.514 bytes**, SHA-256 `07720B4D6C330F606F981852FB031B6DAEE60019ECFBE7EEFC1645F3EF6948D5` (raíz del repositorio).
 
 ---
 
@@ -69,7 +74,7 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 ### Arquitectura
 - Clean Architecture: Domain / Data / Feature / Core / DI
 - Hilt para DI (DatabaseModule, RepositoryModule, DispatcherModule, etc.)
-- Room con KSP (Room v5, migraciones `1→2`, `2→3`, `3→4`, `4→5`)
+- Room con KSP (Room v6, migraciones `1→2`, `2→3`, `3→4`, `4→5`, `5→6`)
 - Kotlin Coroutines + Flow reactivo
 - ProGuard/R8 en release
 
@@ -102,8 +107,12 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 - **`mergeReleaseResources`**: renombrado `estalingradocorp_logo.png` → `.jpg` (era un JPEG mal nombrado).
 - **Sin controles de reproducción en Android 13+**: se solicita `POST_NOTIFICATIONS` en runtime.
 
-### Sin resolución
-- **Cierre inesperado puntual (una vez)**: observado en un dispositivo físico, no reproducible de forma determinista. Sin traza (`logcat`) no se pudo identificar la causa; pendiente de capturar en la próxima reproducción.
+### Resueltos en la consolidación (2026-10-15)
+- **La biblioteca ya no se vacía por un escaneo sin resultados**: `DefaultLibraryScanner` no marca `isAvailable=0` cuando el descubrimiento vuelve vacío. Así, canciones, favoritos y playlists dejan de "desaparecer" ante un escaneo transitorio (MediaStore aún no listo tras boot, volumen desmontado, SAF sin resolver o sin carpetas seleccionadas).
+- **Inicio desacoplado del vacío de biblioteca**: la pantalla "Sin música" solo aparece si **no hay canciones, ni playlists, ni carpetas**; si hay playlists o carpetas aunque la biblioteca esté vacía, Inicio sigue visible.
+- **Carpetas elegidas explícitamente se respetan**: `AudioPathFilter` solo actúa cuando la selección es amplia (todo el volumen); si la pista cae en una **subcarpeta concreta** elegida, no se excluye.
+- **Copia de seguridad desactivada**: `android:allowBackup="false"` y exclusión de `database/` y `sharedpref/` en `backup_rules.xml` y `data_extraction_rules.xml` (evita que un restore revierta playlists/favoritos).
+- **Trabajo pesado en el hilo principal durante la reproducción**: `HomeViewModel` recalculaba `buildFolders`/`mostPlayedSongs` (O(n)/O(n log n)) sobre todo el catálogo en **cada tick de reproducción (500 ms)** y en `Dispatchers.Main`. Ahora los derivados dependen solo del catálogo (`shareIn`/`distinctUntilChanged`) y se calculan en `Dispatchers.Default`; el mapping Room→Dominio de `RoomLibraryRepository` también se movió a `Default`. Prueba: `los ticks de reproduccion no recalculan los derivados de biblioteca`.
 
 ---
 
@@ -145,7 +154,23 @@ En esta consolidación (2026-10-12) se sumaron: **nuevo ícono de app y logo in-
 - UI Playlists: `PlaylistsScreen` rediseñada (portadas reales, menú Editar/Eliminar con confirmación); `PlaylistDetailScreen` rediseñada (portada, descripción, métricas, Reproducir/Aleatorio/Añadir, reordenar arriba/abajo); diálogos compartidos en `core/ui/components/PlaylistDialogs.kt` (`CreatePlaylistDialog`/`EditPlaylistDialog`/`ConfirmDeleteDialog`); helpers `formatTotalDuration`/`formatSongCount` en `TimeFormat.kt`.
 - Tests: `RoomPlaylistRepositoryTest` (+4: resumen visible/duración/portada, resumen vacío, editar descripción), `PlaylistsViewModelTest` (nuevo), `TimeFormatTest` (nuevo).
 
-- Verificado localmente: `assembleDebug` + `testDebugUnitTest` + `lintDebug` → **BUILD SUCCESSFUL**; `Auralis-debug.apk` regenerado (25.814.338 bytes, SHA-256 `09893ABEC9B8B2BA5EC9853827770B46FC3EC4AFB9771D68450E53267C483443`).
+- Verificado localmente: `assembleDebug` + `testDebugUnitTest` + `lintDebug` → **BUILD SUCCESSFUL**; APK de esta consolidación: 25.814.338 bytes, SHA-256 `09893ABEC9B8B2BA5EC9853827770B46FC3EC4AFB9771D68450E53267C483443` (histórico; `Auralis-debug.apk` ya fue regenerado con la versión en curso, ver más abajo).
+
+---
+
+## 🗂 Cambios de la sesión (2026-10-14/15) — consolidados en `origin/main` (2026-10-15)
+
+**Catálogo por carpetas seleccionadas + Acceso rápido por más reproducidas** (consolidado):
+- Dominio: `Song.sourceFolderUri` (tree URI de la carpeta seleccionada que contiene la canción; `null` si el escaneo no pudo asociarla).
+- Data: `SongEntity.sourceFolderUri` + índice `index_songs_sourceFolderUri`; Room **v6** con migración `MIGRATION_5_6` (`ALTER TABLE songs ADD COLUMN sourceFolderUri TEXT DEFAULT NULL` + índice); `MediaStoreSource` indexa **solo** el audio dentro de las carpetas seleccionadas y asocia cada canción a la carpeta **más específica** (`matchedSelectedFolder`), descartando lo demás; `DefaultLibraryScanner` la persiste y `hasChanged` la compara; `Mappers` la mapea en ambas direcciones. Schema `6.json` exportado.
+- Registro de reproducciones: `LibraryDao.registerPlay(id, playedAtEpochMs)` (`playCount + 1`, `lastPlayedAtEpochMs`); `LibraryRepository.registerPlay(...)`; `Media3PlaybackRepository` registra una reproducción por canción distinta al empezar a sonar.
+- Core: `core/common/folder/SelectedFolders.kt` (`songsInSelectedFolder`, `libraryFolders` → `MusicLibraryFolder`) y `core/common/library/MostPlayedSongs.kt` (`mostPlayedSongs`). Se **elimina** `MusicFolderTree.kt`.
+- UI: en Inicio → "Todas", **fila horizontal persistente** de carpetas (`FolderBrowser`/`FolderItem`: portada, nº canciones); la carpeta activa se **resalta** y se **cambia con un solo toque** (1→2→3→2→1), sin entrar/volver (se descarta la miga de pan y el botón "Volver"); **re-tocar la carpeta activa la colapsa** y la fila se **auto-desplaza** a la activa (`rememberLazyListState`). La selección **se mantiene al cambiar entre "Todas"/"Favoritos"/"Playlists"**. Debajo, la **lista plana recursiva** de la carpeta elegida; **sin carpeta seleccionada no se listan canciones** (pista "Elegí una carpeta para ver su música"). `selectedFolderUri` con `rememberSaveable`; botón "Añadir carpeta" y estado vacío si no hay carpetas. "Acceso rápido" usa `popularSongs` (`mostPlayedSongs`).
+- Reproducción acotada: `HomeViewModel.onSongClick(song, scope)` / `playAll(scope)` fijan la **cola a la carpeta mostrada** (evita mezclar toda la biblioteca).
+- Tests: `SelectedFoldersTest` (nuevo, 4 casos), `MostPlayedSongsTest` (nuevo, 5 casos), `LibraryDaoTest` (+1 `registerPlay`); `MappersTest`/`FavoritesViewModelTest`/`HiddenSongsViewModelTest` actualizados a `sourceFolderUri`/`registerPlay`.
+- Verificado localmente (consolidación 2026-10-15): `assembleDebug` + `testDebugUnitTest` (**158 tests, 0 fallos**) + `lintDebug` → **BUILD SUCCESSFUL**. `Auralis-debug.apk` regenerado: **25.604.514 bytes**, SHA-256 `07720B4D6C330F606F981852FB031B6DAEE60019ECFBE7EEFC1645F3EF6948D5`.
+- **Blindajes** (fixes de esta sesión): `DefaultLibraryScanner` no poda la biblioteca con descubrimiento vacío; Inicio solo muestra "Sin música" si no hay canciones, playlists ni carpetas; `MediaStoreSource` respeta las subcarpetas elegidas (no aplica `AudioPathFilter` cuando la selección es una subcarpeta concreta); backup desactivado (`allowBackup="false"` + reglas de exclusión).
+- **Optimización de rendimiento (gama media-baja)**: `HomeViewModel` desacopla los *ticks* de reproducción (500 ms) de los derivados `folders`/`popularSongs` (solo se recalculan cuando cambia el catálogo, en `Dispatchers.Default`); `RoomLibraryRepository.observe*()` mueve el mapping Room→Dominio a `Dispatchers.Default`. Prueba nueva: `los ticks de reproduccion no recalculan los derivados de biblioteca`.
 
 ---
 
@@ -182,3 +207,4 @@ Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 | 2026-10-12 | (consolidación) | Features core + nuevo logo/ícono + versión en drawer + POST_NOTIFICATIONS + tests instrumentados + CI matriz |
 | 2026-10-12 | `8304e58` | v0.2.0: escaneo automático por defecto + carpetas adicionales (SAF); tag `v0.2.0` (subido a `origin`) |
 | 2026-10-14 | (consolidación) | Pulido visual del reproductor (aura reactiva al ritmo, seek, mini-player scrub) + gestión de biblioteca/playlists (ocultar canciones, chip Playlists) — **subida a `origin/main`** |
+| 2026-10-15 | (consolidación) | Catálogo por carpetas seleccionadas (`sourceFolderUri`, Room v6, vista de carpetas + cola acotada), Acceso rápido por más reproducidas, blindajes anti-vaciado de la biblioteca y optimización de Inicio para gama media-baja — **subida a `origin/main`** |

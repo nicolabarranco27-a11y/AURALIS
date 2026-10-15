@@ -2,7 +2,9 @@
 
 Auralis es un reproductor de música moderno, elegante y sin anuncios para Android. Diseñado con una arquitectura limpia, sigue las mejores prácticas de desarrollo Android y ofrece una experiencia de usuario fluida con Material Design 3.
 
-> **Última release**: v0.2.0 (`8304e58` + tag `v0.2.0`). `versionName = "0.2.0"` / `versionCode = 2`. Sobre esa release se consolidaron y subieron a `origin/main` (2026-10-14) el pulido visual del reproductor —**aura que late al ritmo real de la canción** (sin permisos), controles con íconos, seek rediseñado y **barra inferior unificada con progreso interactivo**— y la **gestión de biblioteca/playlists** (ocultar canciones con `isHidden`/Room v5, chip "Playlists" en Inicio y rediseño de Playlists). Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
+> **Última release**: v0.2.0 (`8304e58` + tag `v0.2.0`). `versionName = "0.2.0"` / `versionCode = 2`. Sobre esa release se consolidaron y subieron a `origin/main` el pulido visual del reproductor —**aura que late al ritmo real de la canción** (sin permisos), controles con íconos, seek rediseñado y **barra inferior unificada con progreso interactivo**— y la **gestión de biblioteca/playlists** (ocultar canciones con `isHidden`/Room v5, chip "Playlists" en Inicio y rediseño de Playlists).
+>
+> **Consolidado en `origin/main` (2026-10-15)**: **catálogo por carpetas seleccionadas** (la app indexa **solo** el audio de las carpetas elegidas con SAF; `sourceFolderUri`/Room v6, vista de carpetas en Inicio → "Todas" con lista plana recursiva y cola acotada), **Acceso rápido = canciones más reproducidas**, **blindajes** para que la biblioteca no se vacíe por un escaneo sin resultados y para que las playlists no desaparezcan cuando la biblioteca está vacía, y **optimización de Inicio para gama media-baja** (los *ticks* de reproducción de 500 ms ya no recalculan `folders`/`popularSongs`; el trabajo pesado corre en `Dispatchers.Default`). Ver `CHANGELOG.md`, `docs/PROJECT_STATUS.md` y `docs/RELEASE_PLAN.md`.
 
 ## 📱 Capturas de Pantalla
 
@@ -19,8 +21,8 @@ Auralis es un reproductor de música moderno, elegante y sin anuncios para Andro
 - **Control de velocidad** - Seek preciso con slider interactivo en `PlayerScreen`
 
 ### Organización de Biblioteca
-- **Escaneo automático** - Auralis detecta y organiza la música del dispositivo vía MediaStore, sin configuración previa
-- **Carpetas adicionales** - Suma carpetas específicas con el explorador del sistema (SAF), desde *Canciones* o Ajustes; su audio se añade a la biblioteca
+- **Catálogo por carpetas** - Auralis cataloga **solo** el audio de las carpetas que el usuario elige con el explorador del sistema (SAF); las canciones fuera de ellas no aparecen
+- **Carpetas de música (SAF)** - Añade/quita carpetas desde *Canciones* o Ajustes; en Inicio → "Todas" se listan las carpetas elegidas y, al abrir una, sus canciones (lista plana recursiva, cola acotada a esa carpeta)
 - **WorkManager** - Escaneo en segundo plano programado
 - **Metadatos completos** - Título, artista, álbum, duración, género, carátula
 - **Vistas jerárquicas**:

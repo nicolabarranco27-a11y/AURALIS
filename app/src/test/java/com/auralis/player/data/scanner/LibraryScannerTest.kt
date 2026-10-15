@@ -182,15 +182,29 @@ class LibraryScannerTest {
 
     @Test
     fun `cancion que reaparece se restaura`() = runTest {
-        discovered = listOf(audio(1, "Alpha"))
+        discovered = listOf(audio(1, "Alpha"), audio(2, "Beta"))
         scanner.sync()
-        discovered = emptyList()
+        discovered = listOf(audio(2, "Beta"))
         scanner.sync()
-        discovered = listOf(audio(1, "Alpha"))
+        discovered = listOf(audio(1, "Alpha"), audio(2, "Beta"))
         val outcome = scanner.sync() as ScanOutcome.Success
 
         assertEquals(1, outcome.updated)
-        assertEquals(listOf("1"), dao().getSongs().map { it.id })
+        assertEquals(listOf("1", "2"), dao().getSongs().map { it.id })
+    }
+
+    @Test
+    fun `escaneo vacio no vacia la biblioteca`() = runTest {
+        discovered = listOf(audio(1, "Alpha"), audio(2, "Beta"))
+        scanner.sync()
+
+        // Un descubrimiento vacio (MediaStore aun no listo, volumen desmontado
+        // o SAF sin resolver) no debe marcar nada como no disponible.
+        discovered = emptyList()
+        val outcome = scanner.sync() as ScanOutcome.Success
+
+        assertEquals(0, outcome.removed)
+        assertEquals(listOf("1", "2"), dao().getSongs().map { it.id })
     }
 
     @Test

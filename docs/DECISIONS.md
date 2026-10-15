@@ -241,3 +241,49 @@ Este documento registra las decisiones técnicas clave tomadas durante el desarr
   - Rotar la carátula además del aura: el usuario prefiere que solo se mueva el aura.
 - **Razón**: logra un efecto vivo y "reactivo a la reproducción" con coste cero de permisos, buen rendimiento y coherencia con el resto del sistema visual.
 - **Nota (2026-10-14, rev.)**: para que el aura se mueva realmente "al ritmo de la canción", el `RhythmAudioProcessor` deja de ser un simple RMS y pasa a separar **graves** (paso bajo ~150 Hz) y **agudos** (resta), siguiendo una envolvente de pico por banda y **detectando ataques** contra una media adaptativa; publica en `PlaybackRhythm` un nivel que combina el volumen con un "pulso" cuya **caída se adapta al tempo** estimado entre ataques. `PlaybackEnergy` da más peso a esa señal real. En lo visual, `VinylAura` pasa a **cuatro brumas**, añade una **respiración global** (`scale`) y un **empuje angular** de las brumas en cada golpe, con un **movimiento fluido** (la energía se suaviza en el tiempo con subida rápida y bajada lenta, y se le suma una **deriva ambiental continua** independiente del ritmo), y acelera las derivas (`durationRotation` 13 s, `durationAuroraDrift` 21 s, `durationAuroraSway` 32 s). También se refuerza el tono rojo del respaldo (`#C62828`) y el `vividly` (saturación ≥0.64, valor ≥0.68), y el thumb de la barra de seek pasa a ser de un solo color sólido (`auraColor`). Se usa `DefaultRenderersFactory` personalizado para inyectar el procesador en `DefaultAudioSink` (passthrough; no usa `Visualizer`).
+
+---
+
+## ADR 020: El catálogo son únicamente las carpetas seleccionadas (revierte ADR 012)
+- **Fecha**: 2026-10-14/15
+- **Estado**: Aceptado (consolidado en `origin/main`, 2026-10-15)
+- **Contexto**: ADR 012 hacía que el escaneo incluyera **toda** la música del dispositivo (`IS_MUSIC != 0`) y que las carpetas elegidas solo **sumaran** audio. En la práctica la biblioteca de Inicio mostraba música que el usuario no quería ver (notas de voz, WhatsApp, descargas) y no había una forma clara de navegar por carpetas. El usuario pidió que la app trabajara **solo** con las carpetas que él elige.
+- **Decisión**:
+  - El catálogo son **exclusivamente** las canciones dentro de las carpetas seleccionadas (SAF, `MusicFolderPreferences`). `MediaStoreSource` descarta todo audio que no esté dentro de una de ellas (nuevo `matchedSelectedFolder`, que además devuelve la carpeta **más específica** que contiene al archivo); se elimina el escaneo `IS_MUSIC` global y el filtro `folderFromDataPath`.
+  - Persistencia: `SongEntity.sourceFolderUri` guarda el **tree URI** de la carpeta contenedora (Room **v6**, migración `MIGRATION_5_6` remodelada —nunca liberada— con `ALTER TABLE songs ADD COLUMN sourceFolderUri TEXT DEFAULT NULL` + índice). Se elimina la propuesta previa de `folderPath` relativa.
+  - UI: en Inicio → "Todas" la fila de **carpetas seleccionadas** (`FolderBrowser`/`FolderItem`, con portada y nº de canciones) es **persistente**: la carpeta activa se **resalta** y se **cambia con un solo toque** (1→2→3→2→1), sin pasos de entrar/volver (se descarta la miga de pan y el botón "Volver"). **Re-tocar la carpeta activa la colapsa** (deja de mostrar sus canciones) y la fila se **auto-desplaza** hasta la activa (`rememberLazyListState` + `animateScrollToItem`). **La selección se mantiene al cambiar entre "Todas", "Favoritos" y "Playlists"** (no se resetea al salir de "Todas"). Debajo se muestra la **lista plana recursiva** de la carpeta elegida (incluye subcarpetas, sin niveles intermedios); **sin carpeta seleccionada no se listan canciones** (pista breve). `selectedFolderUri` (`rememberSaveable`) acota la **cola** a esa carpeta (`onSongClick(song, scope)` / `playAll(scope)`). Botón "Añadir carpeta"; sin carpetas se muestra un **estado vacío** y el resto de apartados quedan vacíos pero funcionales.
+  - Localización de carpeta para agrupar: se usa el **tree URI** de la carpeta seleccionada (identidad estable provista por SAF), no rutas derivadas de `RELATIVE_PATH`/`DATA`.
+- **Alternativas descartadas**:
+  - Mantener el escaneo global de ADR 012 y solo *filtrar* en la UI: seguía indexando audio no deseado y no definía la identidad de "carpeta" de forma fiable.
+  - Navegación jerárquica nivel a nivel (subcarpetas + migas de pan + `MusicFolderTree`): el usuario prefirió una **lista plana recursiva** por carpeta seleccionada.
+  - `folderPath` relativa (`RELATIVE_PATH`/`DATA`): frágil ante cambios de ruta y no cubre de forma limpia audio fuera de `Music/`.
+- **Razón**: la app refleja exactamente lo que el usuario eligió, sin sorpresas, y la carpeta (tree URI) es una identidad estable y ya persistida por el repositorio de carpetas.
+
+## ADR 021: Acceso rápido por canciones más reproducidas
+- **Fecha**: 2026-10-14/15
+- **Estado**: Aceptado (consolidado en `origin/main`, 2026-10-15)
+- **Contexto**: La fila de "Acceso rápido" de Inicio debía ser realmente útil. Se propuso basarla en lo más escuchado por el usuario.
+- **Decisión**:
+  - Selección pura en `core/common/library/MostPlayedSongs.kt`: `mostPlayedSongs(songs, limit)` ordena por `playCount` desc, desempatando por `lastPlayedAt` desc; si **no hay ninguna reproducción** registrada recurre a las **favoritas** y, si tampoco, a las **primeras** `limit`.
+  - Registro de reproducciones: `LibraryDao.registerPlay(id, playedAtEpochMs)` incrementa `playCount` y actualiza `lastPlayedAtEpochMs`; `LibraryRepository.registerPlay(...)` lo expone y `Media3PlaybackRepository` registra **una** reproducción por canción distinta al empezar a sonar (no cuenta pausas ni reanudaciones de la misma pista).
+  - `HomeViewModel` expone `popularSongs` calculado con `mostPlayedSongs`; la vista usa `QUICK_ACCESS_LIMIT = 5`.
+- **Alternativas descartadas**:
+  - Favoritos primero: menos representativo de lo que el usuario escucha.
+  - Índice/tabla de historial aparte: innecesario para 5 elementos; `playCount`/`lastPlayedAt` ya existían en `songs`.
+- **Razón**: aprovecha columnas ya presentes, es testeable en JVM (funciones puras) y ofrece un respaldo sensato cuando aún no hay historial.
+
+---
+
+## ADR 022: Inicio desacopla el tick de reproducción de los derivados de biblioteca
+- **Fecha**: 2026-10-15
+- **Estado**: Aceptado (consolidado en `origin/main`, 2026-10-15)
+- **Contexto**: `HomeViewModel` combinaba en una misma cadena `observeSongs()`, `scanMonitor.status`, `observePlaybackState()`, carpetas y playlists, y dentro del `combine` calculaba `buildFolders` (agrupación O(n)) y `mostPlayedSongs` (orden O(n log n)) sobre **todo** el catálogo. Como `observePlaybackState()` emite un estado nuevo cada **500 ms** (cambia `positionMs`), la cadena recompilaba esos derivados y se ejecutaba en `Dispatchers.Main` (`viewModelScope`) dos veces por segundo durante la reproducción. En gama media-baja (Redmi Note 8/9, Moto G/E, Galaxy A10–A50) esto genera picos de trabajo en el hilo principal, jank y churn de GC, además de un `RoomLibraryRepository.observeSongs().map { it.toDomain() }` sin `flowOn`.
+- **Decisión**:
+  - `HomeViewModel` separa tres corrientes: **catálogo** (`songsFlow`/`selectedFoldersFlow`, con `distinctUntilChanged` + `flowOn(Dispatchers.Default)` + `shareIn(WhileSubscribed(5 s), replay = 1)`), **derivados pesados** (`libraryDerivedFlow = combine(songs, folders) { LibraryDerived(folders, popular) }` con `flowOn(Default)`, `distinctUntilChanged` y `shareIn`) y **reproducción**.
+  - El `combine` final solo **ensambla referencias** ya calculadas (O(1) por tick); `folders`/`popularSongs` se recomputan **solo** cuando cambia el catálogo o las carpetas, nunca por un tick de posición.
+  - `RoomLibraryRepository.observeSongs()` (y los demás `observe*`) mueven el mapping Room→Dominio a `Dispatchers.Default` con `.flowOn(Dispatchers.Default)`.
+  - Se mantiene `playbackState` (con posición) en `HomeUiState` para que `MiniPlayerBar`/`PlayerScreen` sigan mostrando el progreso.
+- **Alternativas descartadas**:
+  - `derivedStateOf`/memoria en UI: no evita el cómputo del `ViewModel` (ocurre en la lambda del `combine`, no en Compose).
+  - Quitar `positionMs` de `HomeUiState`: rompería el progreso del mini-player sin una refactorización mayor de todas las pantallas.
+- **Razón**: elimina el trabajo O(n log n) recurrente del hilo principal con cambios mínimos y de bajo riesgo, libera `Main`, mejora batería y fluidez, y es cubierto por la prueba `los ticks de reproduccion no recalculan los derivados de biblioteca`.

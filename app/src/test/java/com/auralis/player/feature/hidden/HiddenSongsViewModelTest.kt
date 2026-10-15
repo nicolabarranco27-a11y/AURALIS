@@ -112,6 +112,7 @@ class HiddenSongsViewModelTest {
         override fun observeAlbumsByArtist(artistName: String): Flow<List<Album>> = emptyFlow()
         override fun observeLibraryChanges(): Flow<Unit> = emptyFlow()
         override suspend fun searchSongs(query: String): List<Song> = emptyList()
+        override suspend fun registerPlay(songId: SongId, playedAtEpochMs: Long) {}
     }
 
     private class FakePlaybackRepository : PlaybackRepository {

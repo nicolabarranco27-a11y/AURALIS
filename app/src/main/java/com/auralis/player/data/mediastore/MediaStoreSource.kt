@@ -33,16 +33,22 @@ data class MediaStoreAudio(
     val mimeType: String?,
     val sizeBytes: Long?,
     val path: String?,
+    /**
+     * URI de arbol ("tree URI") de la carpeta elegida por el usuario (SAF) que
+     * contiene esta pista. null si el audio no cae dentro de ninguna carpeta
+     * seleccionada (en cuyo caso no se indexa).
+     */
+    val sourceFolderUri: String? = null,
 )
 
 /**
  * Fuente de descubrimiento del catalogo.
  * Room sera la fuente de verdad; MediaStore solo aporta los datos descubiertos.
  *
- * El escaneo por defecto cubre toda la musica del dispositivo. Las carpetas
- * elegidas por el usuario (URIs de arbol del selector de documentos / Storage
- * Access Framework) se SUMAN a esa base: se indexa su audio aunque el sistema
- * no lo marque como musica. Se descarta siempre el audio que no es musica.
+ * El catalogo se restringe a las carpetas elegidas por el usuario (URIs de
+ * arbol del selector de documentos / Storage Access Framework): solo se indexa
+ * el audio que cae dentro de alguna de ellas. Sin carpetas no hay catalogo.
+ * Se descarta siempre el audio que no es musica.
  */
 interface AudioDiscoverySource {
     suspend fun getAudioFiles(folderTreeUris: Set<String>): List<MediaStoreAudio>
@@ -82,7 +88,6 @@ class MediaStoreSource @Inject constructor(
             add(MediaStore.Audio.Media.DATE_MODIFIED)
             add(MediaStore.Audio.Media.MIME_TYPE)
             add(MediaStore.Audio.Media.SIZE)
-            add(MediaStore.Audio.Media.IS_MUSIC)
             if (includeRelativePath) {
                 add(MediaStore.Audio.Media.VOLUME_NAME)
                 add(MediaStore.Audio.Media.RELATIVE_PATH)
@@ -93,10 +98,10 @@ class MediaStoreSource @Inject constructor(
 
         val result = mutableListOf<MediaStoreAudio>()
 
-        // Escaneo por defecto: toda la musica del dispositivo (IS_MUSIC). Las
-        // carpetas elegidas por el usuario se SUMAN: se incluye su audio aunque
-        // el sistema no lo marque como musica (p. ej. descargas). AudioPathFilter
-        // siempre descarta mensajeria, grabaciones y sonidos del sistema.
+        // El catalogo se limita a las carpetas elegidas por el usuario: solo se
+        // indexa el audio que cae dentro de alguna (la mas especifica).
+        // AudioPathFilter siempre descarta mensajeria, grabaciones y sonidos
+        // del sistema.
         context.contentResolver.query(
             collection,
             projection,
@@ -122,7 +127,6 @@ class MediaStoreSource @Inject constructor(
             val modifiedIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
             val mimeIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE)
             val sizeIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
-            val isMusicIdx = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_MUSIC)
             val volumeIdx = if (includeRelativePath) {
                 cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.VOLUME_NAME)
             } else {
@@ -136,18 +140,23 @@ class MediaStoreSource @Inject constructor(
 
             while (cursor.moveToNext()) {
                 val rawPath = cursor.safeGetString(pathIdx)
-                // Descarta audio que no es musica (mensajeria, grabaciones y
-                // sonidos del sistema) aunque caiga dentro de una carpeta elegida.
-                if (isNonMusicAudioPath(rawPath)) continue
 
-                val isMusic = cursor.getInt(isMusicIdx) != 0
-                val inSelectedFolder = isInsideSelectedFolder(
+                // El catalogo se restringe a carpetas elegidas: se indexa solo
+                // el audio que cae dentro de alguna (la mas especifica). Sin
+                // carpetas seleccionadas no se descubre nada.
+                val matched = matchedSelectedFolder(
                     rowVolume = if (volumeIdx >= 0) cursor.safeGetString(volumeIdx) else null,
                     rowPath = rawPath,
                     folders = folders,
                     includeRelativePath = includeRelativePath,
-                )
-                if (!isMusic && !inSelectedFolder) continue
+                ) ?: continue
+
+                // AudioPathFilter descarta audio que no es musica (mensajeria,
+                // grabaciones y sonidos del sistema) solo cuando la seleccion es
+                // amplia (el volumen completo, p. ej. la raiz del almacenamiento).
+                // Si el usuario eligio una subcarpeta concreta, se respeta su
+                // eleccion y no se filtra.
+                if (matched.relativePath.isEmpty() && isNonMusicAudioPath(rawPath)) continue
 
                 val id = cursor.getLong(idIdx)
                 result += MediaStoreAudio(
@@ -168,6 +177,7 @@ class MediaStoreSource @Inject constructor(
                     mimeType = cursor.safeGetString(mimeIdx),
                     sizeBytes = cursor.getLong(sizeIdx).takeIf { it > 0 },
                     path = if (includeRelativePath) null else rawPath,
+                    sourceFolderUri = matched.treeUri,
                 )
             }
         }
@@ -176,26 +186,28 @@ class MediaStoreSource @Inject constructor(
     }
 
     /**
-     * `true` si la pista cae dentro de alguna carpeta elegida por el usuario.
+     * Devuelve la carpeta elegida que contiene la pista (la mas especifica si
+     * hay carpetas anidadas), o null si no cae en ninguna.
      */
-    private fun isInsideSelectedFolder(
+    private fun matchedSelectedFolder(
         rowVolume: String?,
         rowPath: String?,
         folders: List<FolderFilter>,
         includeRelativePath: Boolean,
-    ): Boolean {
-        if (folders.isEmpty() || rowPath.isNullOrBlank()) return false
-        return if (includeRelativePath) {
+    ): FolderFilter? {
+        if (folders.isEmpty() || rowPath.isNullOrBlank()) return null
+        val matches = if (includeRelativePath) {
             val rowRelative = rowPath.trim('/')
-            folders.any { folder ->
+            folders.filter { folder ->
                 mediaVolumeName(folder.volume) == rowVolume &&
                     (folder.relativePath.isEmpty() ||
                         rowRelative == folder.relativePath ||
                         rowRelative.startsWith(folder.relativePath + "/"))
             }
         } else {
-            folders.any { folder -> rowPath.startsWith(absolutePrefix(folder)) }
+            folders.filter { folder -> rowPath.startsWith(absolutePrefix(folder)) }
         }
+        return matches.maxByOrNull { it.relativePath.length }
     }
 
     /**
@@ -214,7 +226,7 @@ class MediaStoreSource @Inject constructor(
         val volume = documentId.substring(0, separator)
         val relativePath = documentId.substring(separator + 1).trim('/')
         if (volume.isBlank()) return null
-        return FolderFilter(volume, relativePath)
+        return FolderFilter(volume, relativePath, treeUri)
     }
 
     /** Nombre del volumen en MediaStore a partir del volumen del tree URI. */
@@ -240,7 +252,11 @@ class MediaStoreSource @Inject constructor(
     private fun decodeDiscNumber(raw: Int): Int? =
         raw.takeIf { it >= TRACK_MODULUS }?.let { it / TRACK_MODULUS }
 
-    private data class FolderFilter(val volume: String, val relativePath: String)
+    private data class FolderFilter(
+        val volume: String,
+        val relativePath: String,
+        val treeUri: String,
+    )
 
     private companion object {
         const val TRACK_MODULUS = 1000

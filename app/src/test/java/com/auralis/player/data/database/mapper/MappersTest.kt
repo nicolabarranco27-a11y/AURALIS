@@ -38,6 +38,7 @@ class MappersTest {
         playCount = 7L,
         lastPlayedAtEpochMs = epoch.toEpochMilli(),
         isFavorite = true,
+        sourceFolderUri = "content://com.android.externalstorage.documents/tree/primary%3AMusic%2FRock",
     )
 
     @Test
@@ -54,6 +55,10 @@ class MappersTest {
         assertEquals(7L, song.playCount)
         assertEquals(true, song.isFavorite)
         assertEquals(false, song.isHidden)
+        assertEquals(
+            "content://com.android.externalstorage.documents/tree/primary%3AMusic%2FRock",
+            song.sourceFolderUri,
+        )
     }
 
     @Test
@@ -130,6 +135,7 @@ class MappersTest {
             album = "B",
             year = 1999,
             durationMs = 100L,
+            sourceFolderUri = "content://tree/primary%3ADownload",
         )
         val entity = original.toEntity(
             mediaStoreId = 9L,

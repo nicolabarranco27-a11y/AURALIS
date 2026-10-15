@@ -15,6 +15,7 @@ import androidx.room.PrimaryKey
         Index("albumArtist"),
         Index("genre"),
         Index("dateAddedEpochMs"),
+        Index("sourceFolderUri"),
     ],
 )
 data class SongEntity(
@@ -45,6 +46,13 @@ data class SongEntity(
     val isHidden: Boolean = false,
     /** URI de la portada (referencia local o de MediaStore). */
     val coverUri: String? = null,
+    /**
+     * URI de arbol ("tree URI") de la carpeta elegida por el usuario (SAF) que
+     * contiene esta cancion. Es la identidad con la que Inicio agrupa la
+     * biblioteca por carpetas. null en filas escaneadas antes de la migracion
+     * 5->6 (se rellena al re-escanear) o si el audio no pertenece a ninguna.
+     */
+    val sourceFolderUri: String? = null,
     /**
      * Clave de busqueda premormalizada (minusculas y sin acentos) de
      * title+artist+album. Evita recalcular REPLACE/LOWER por fila en cada

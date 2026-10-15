@@ -2,7 +2,7 @@
 
 Pasos técnicos y administrativos obligatorios para publicar Auralis en la tienda oficial.
 
-**Estado del proyecto**: última release v0.2.0 (`8304e58` + tag `v0.2.0`); `versionName = "0.2.0"` / `versionCode = 2`. El pulido visual del reproductor y la gestión de biblioteca/playlists ya están **consolidados en `origin/main`** (2026-10-14). La mayoría de requisitos de Store siguen abiertos.
+**Estado del proyecto**: última release v0.2.0 (`8304e58` + tag `v0.2.0`); `versionName = "0.2.0"` / `versionCode = 2`. El pulido visual del reproductor, la gestión de biblioteca/playlists, el **catálogo por carpetas seleccionadas** (Room v6), el **Acceso rápido por más reproducidas**, los **blindajes anti-vaciado de la biblioteca** y la **optimización de Inicio** ya están **consolidados en `origin/main`** (2026-10-14/15). La mayoría de requisitos de Store siguen abiertos.
 
 ---
 

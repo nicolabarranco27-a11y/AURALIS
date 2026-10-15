@@ -137,7 +137,7 @@ class HomeViewModelTest {
         val repository = FakeLibraryRepository(songs)
         val viewModel = createViewModel(hasPermission = true, libraryRepository = repository)
 
-        val state = viewModel.uiState.first()
+        val state = viewModel.uiState.first { it.songCount == 2 }
 
         assertEquals(2, state.songCount)
         assertEquals("Song 1", state.songs[0].title)
@@ -160,7 +160,7 @@ class HomeViewModelTest {
 
         monitor.emitRunning()
 
-        val state = viewModel.uiState.first()
+        val state = viewModel.uiState.first { it.scanStatus is ScanDisplayStatus.Running }
         assertEquals(ScanDisplayStatus.Running, state.scanStatus)
     }
 
@@ -171,7 +171,7 @@ class HomeViewModelTest {
 
         monitor.emitFinished(ScanOutcome.Success(scanned = 10, added = 5, updated = 3, removed = 2))
 
-        val state = viewModel.uiState.first()
+        val state = viewModel.uiState.first { it.scanStatus is ScanDisplayStatus.Success }
         assertTrue(state.scanStatus is ScanDisplayStatus.Success)
         val success = state.scanStatus as ScanDisplayStatus.Success
         assertEquals(10, success.scanned)
@@ -187,7 +187,7 @@ class HomeViewModelTest {
 
         monitor.emitFinished(ScanOutcome.Failed("Error de escaneo"))
 
-        val state = viewModel.uiState.first()
+        val state = viewModel.uiState.first { it.scanStatus is ScanDisplayStatus.Failed }
         assertTrue(state.scanStatus is ScanDisplayStatus.Failed)
         val failed = state.scanStatus as ScanDisplayStatus.Failed
         assertEquals("Error de escaneo", failed.message)
@@ -252,6 +252,30 @@ class HomeViewModelTest {
         assertEquals(listOf(id), playlists.deleted)
     }
 
+    @Test
+    fun `los ticks de reproduccion no recalculan los derivados de biblioteca`() = kotlinx.coroutines.test.runTest {
+        val songs = listOf(
+            Song(id = SongId("1"), sourceUri = "uri1", title = "Song 1", durationMs = 180000),
+            Song(id = SongId("2"), sourceUri = "uri2", title = "Song 2", durationMs = 240000),
+        )
+        val playback = FakePlaybackRepository()
+        val viewModel = createViewModel(
+            hasPermission = true,
+            libraryRepository = FakeLibraryRepository(songs),
+            playbackRepository = playback,
+        )
+
+        val initial = viewModel.uiState.first { it.songCount == 2 }
+        val foldersBefore = initial.folders
+        val popularBefore = initial.popularSongs
+
+        playback.emit(com.auralis.player.domain.model.PlaybackState(positionMs = 500L))
+
+        val after = viewModel.uiState.first { it.playbackState.positionMs == 500L }
+        org.junit.Assert.assertSame(foldersBefore, after.folders)
+        org.junit.Assert.assertSame(popularBefore, after.popularSongs)
+    }
+
     private fun createViewModel(
         hasPermission: Boolean,
         libraryRepository: LibraryRepository = FakeLibraryRepository(),
@@ -305,6 +329,7 @@ class HomeViewModelTest {
 
     private class FakePlaybackRepository : com.auralis.player.domain.repository.PlaybackRepository {
         private val _state = MutableStateFlow(com.auralis.player.domain.model.PlaybackState.IDLE)
+        fun emit(state: com.auralis.player.domain.model.PlaybackState) { _state.value = state }
         override fun observePlaybackState(): kotlinx.coroutines.flow.Flow<com.auralis.player.domain.model.PlaybackState> = _state.asStateFlow()
         override suspend fun getCurrentState(): com.auralis.player.domain.model.PlaybackState = _state.value
         override fun play() {}
@@ -338,6 +363,7 @@ class HomeViewModelTest {
         override suspend fun searchSongs(query: String): List<Song> = emptyList()
         override fun observeHiddenSongs(): kotlinx.coroutines.flow.Flow<List<Song>> = emptyFlow()
         override suspend fun setSongHidden(songId: com.auralis.player.domain.model.SongId, hidden: Boolean) {}
+        override suspend fun registerPlay(songId: com.auralis.player.domain.model.SongId, playedAtEpochMs: Long) {}
     }
 
     private class FakeScanScheduler @javax.inject.Inject constructor(

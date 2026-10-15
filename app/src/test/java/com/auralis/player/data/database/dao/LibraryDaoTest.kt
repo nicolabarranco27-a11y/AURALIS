@@ -209,6 +209,20 @@ class LibraryDaoTest {
     }
 
     @Test
+    fun `registerPlay incrementa el contador y actualiza la ultima reproduccion`() = runTest {
+        val dao = db.libraryDao()
+
+        dao.upsert(song("s1", "A"))
+
+        dao.registerPlay("s1", 1_000L)
+        dao.registerPlay("s1", 2_000L)
+
+        val loaded = dao.getById("s1")!!
+        assertEquals(2L, loaded.playCount)
+        assertEquals(2_000L, loaded.lastPlayedAtEpochMs)
+    }
+
+    @Test
     fun `setHidden false restaura la cancion a la biblioteca`() = runTest {
         val dao = db.libraryDao()
 

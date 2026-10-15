@@ -11,12 +11,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -34,7 +38,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
@@ -54,6 +60,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.auralis.player.R
+import com.auralis.player.core.common.folder.songsInSelectedFolder
 import com.auralis.player.core.common.format.formatSongCount
 import com.auralis.player.core.common.format.formatTotalDuration
 import com.auralis.player.core.ui.components.AuralisArtwork
@@ -189,14 +196,14 @@ fun HomeScreen(
                             spacing = spacing
                         )
                     }
-                    state.songs.isEmpty() -> {
+                    // Solo se muestra la pantalla guiada cuando de verdad no hay
+                    // nada que ver. Si existe una biblioteca vacia pero hay
+                    // playlists o carpetas, se sigue mostrando Inicio para que
+                    // esos elementos sigan siendo accesibles (nunca "desaparecen").
+                    state.songs.isEmpty() && state.playlists.isEmpty() && state.folders.isEmpty() -> {
                         FullScreenState(
                             title = "Sin música",
-                            description = if (state.selectedFolders.isEmpty()) {
-                                "No encontramos música en tu dispositivo. Puedes agregar carpetas manualmente."
-                            } else {
-                                "No encontramos audio en las carpetas elegidas."
-                            },
+                            description = "No encontramos música en tus carpetas. Agrega carpetas para comenzar.",
                             buttonText = "Agregar carpetas",
                             onButtonClick = { showFolderSheet = true },
                             secondaryButtonText = "Escanear ahora",
@@ -210,7 +217,8 @@ fun HomeScreen(
                             MainContent(
                                 state = state,
                                 onScanClick = { viewModel.requestScan() },
-                                onSongClick = { viewModel.onSongClick(it) },
+                                onPlayScoped = { song, scope -> viewModel.onSongClick(song, scope) },
+                                onPlayAll = { scope -> viewModel.playAll(scope) },
                                 onAddToQueue = { 
                                     viewModel.addToQueue(it)
                                     showQueueFeedback = true
@@ -220,6 +228,7 @@ fun HomeScreen(
                                 onPlaylistClick = onPlaylistClick,
                                 onCreatePlaylist = { name, description -> viewModel.createPlaylist(name, description) },
                                 onDeletePlaylist = { viewModel.deletePlaylist(it) },
+                                onAddFolderClick = { showFolderSheet = true },
                                 onPlayPauseClick = { viewModel.togglePlayPause() },
                                 onPlayerClick = onPlayerClick,
                                 onSeek = { viewModel.seekTo(it) },
@@ -515,13 +524,15 @@ private fun SearchSuggestionItem(
 private fun MainContent(
     state: HomeUiState,
     onScanClick: () -> Unit,
-    onSongClick: (Song) -> Unit,
+    onPlayScoped: (Song, List<Song>) -> Unit,
+    onPlayAll: (List<Song>) -> Unit,
     onAddToQueue: (Song) -> Unit,
     onToggleFavorite: (Song) -> Unit,
     onLongPress: (Song) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onCreatePlaylist: (String, String?) -> Unit,
     onDeletePlaylist: (PlaylistId) -> Unit,
+    onAddFolderClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onPlayerClick: () -> Unit,
     onSeek: (Long) -> Unit,
@@ -532,6 +543,7 @@ private fun MainContent(
     spacing: AppSpacing
 ) {
     var selectedFilter by rememberSaveable { mutableStateOf("Todas") }
+    var selectedFolderUri by rememberSaveable { mutableStateOf<String?>(null) }
     var showCreatePlaylistDialog by remember { mutableStateOf(false) }
     var deletingPlaylist by remember { mutableStateOf<PlaylistSummary?>(null) }
     var revealedPlaylistId by remember { mutableStateOf<String?>(null) }
@@ -544,11 +556,13 @@ private fun MainContent(
         }
     }
 
-    val filteredSongs = remember(state.songs, selectedFilter, state.favoriteIds) {
-        when (selectedFilter) {
-            "Favoritos" -> state.songs.filter { it.id in state.favoriteIds }
-            else -> state.songs
-        }
+    // Canciones de la carpeta seleccionada abierta (todas las suyas).
+    val folderSongs = remember(state.songs, selectedFolderUri) {
+        songsInSelectedFolder(state.songs, selectedFolderUri)
+    }
+
+    val favoriteSongs = remember(state.songs, state.favoriteIds) {
+        state.songs.filter { it.id in state.favoriteIds }
     }
 
     Box(
@@ -578,11 +592,11 @@ private fun MainContent(
                 )
             }
 
-            // ACCESO RÁPIDO section (Carrusel Horizontal)
+            // ACCESO RÁPIDO section (Carrusel Horizontal · más reproducidas)
             item {
                 QuickAccessRow(
-                    songs = state.songs,
-                    onSongClick = onSongClick,
+                    songs = state.popularSongs,
+                    onSongPlay = onPlayScoped,
                     colors = colors,
                     spacing = spacing
                 )
@@ -630,6 +644,52 @@ private fun MainContent(
                     colors = colors,
                     spacing = spacing
                 )
+            }
+
+            // NAVEGACIÓN POR CARPETAS (solo en "Todas")
+            if (selectedFilter == "Todas") {
+                item(key = "folder_browser") {
+                    FolderBrowser(
+                        folders = state.folders,
+                        selectedFolderUri = selectedFolderUri,
+                        folderSongs = folderSongs,
+                        onFolderOpen = { uri ->
+                            selectedFolderUri = if (selectedFolderUri == uri) null else uri
+                        },
+                        onPlayFolder = { onPlayAll(folderSongs) },
+                        onAddFolder = onAddFolderClick,
+                        colors = colors,
+                        spacing = spacing,
+                    )
+                }
+
+                if (selectedFolderUri == null && state.folders.isNotEmpty()) {
+                    item(key = "folder_hint") {
+                        Text(
+                            text = "Elegí una carpeta para ver su música",
+                            style = AppType.body,
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.l, vertical = spacing.l),
+                        )
+                    }
+                }
+
+                if (selectedFolderUri != null && folderSongs.isEmpty()) {
+                    item(key = "folder_empty") {
+                        Text(
+                            text = "No hay canciones en esta carpeta",
+                            style = AppType.body,
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.l, vertical = spacing.l),
+                        )
+                    }
+                }
             }
 
             if (state.scanStatus is ScanDisplayStatus.Running) {
@@ -684,12 +744,17 @@ private fun MainContent(
                     }
                 }
             } else {
-                items(filteredSongs, key = { it.id.value }) { song ->
+                val songsForList = when (selectedFilter) {
+                    "Favoritos" -> favoriteSongs
+                    "Playlists" -> emptyList()
+                    else -> if (selectedFolderUri != null) folderSongs else emptyList()
+                }
+                items(songsForList, key = { it.id.value }) { song ->
                     val isCurrent = state.playbackState.currentSong?.id == song.id
                     SongListItem(
                         song = song,
                         isCurrent = isCurrent,
-                        onClick = { onSongClick(song) },
+                        onClick = { onPlayScoped(song, songsForList) },
                         onLongClick = { onLongPress(song) },
                         onSwipeRight = { onAddToQueue(song) },
                         onToggleFavorite = { onToggleFavorite(song) },
@@ -802,7 +867,7 @@ private fun SectionHeader(
 @Composable
 private fun QuickAccessRow(
     songs: List<Song>,
-    onSongClick: (Song) -> Unit,
+    onSongPlay: (Song, List<Song>) -> Unit,
     colors: AppColors,
     spacing: AppSpacing
 ) {
@@ -820,7 +885,7 @@ private fun QuickAccessRow(
                 items(quickSongs, key = { "quick_${it.id.value}" }) { song ->
                     QuickAccessCard(
                         song = song,
-                        onClick = { onSongClick(song) },
+                        onClick = { onSongPlay(song, quickSongs) },
                         colors = colors,
                         spacing = spacing
                     )
@@ -976,6 +1041,143 @@ private fun FilterChipsRow(
                     selectedBorderColor = Color.Transparent
                 ),
                 shape = RoundedCornerShape(percent = 50)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FolderBrowser(
+    folders: List<HomeFolder>,
+    selectedFolderUri: String?,
+    folderSongs: List<Song>,
+    onFolderOpen: (String) -> Unit,
+    onPlayFolder: () -> Unit,
+    onAddFolder: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.l, vertical = spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = "CARPETAS (${folders.size})",
+                style = AppType.label.copy(fontWeight = FontWeight.Bold, letterSpacing = 2.sp),
+                color = colors.textPrimary,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selectedFolderUri != null && folderSongs.isNotEmpty()) {
+                    IconButton(onClick = onPlayFolder) {
+                        Icon(
+                            imageVector = Icons.Rounded.PlayArrow,
+                            contentDescription = "Reproducir carpeta",
+                            tint = colors.accent,
+                        )
+                    }
+                }
+                IconButton(onClick = onAddFolder) {
+                    Icon(
+                        imageVector = Icons.Rounded.Add,
+                        contentDescription = "Añadir carpeta",
+                        tint = colors.accent,
+                    )
+                }
+            }
+        }
+
+        if (folders.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.l, vertical = spacing.l),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    text = "No hay carpetas seleccionadas",
+                    style = AppType.body,
+                    color = colors.textSecondary,
+                )
+                Spacer(modifier = Modifier.height(spacing.s))
+                TextButton(onClick = onAddFolder) {
+                    Text(
+                        text = "AÑADIR CARPETAS",
+                        style = AppType.label,
+                        color = colors.accent,
+                    )
+                }
+            }
+            return@Column
+        }
+
+        val listState = rememberLazyListState()
+        LaunchedEffect(selectedFolderUri, folders) {
+            val index = folders.indexOfFirst { it.uri == selectedFolderUri }
+            if (index >= 0) listState.animateScrollToItem(index)
+        }
+
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = spacing.l, vertical = spacing.s),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        ) {
+            items(folders, key = { it.uri }) { folder ->
+                FolderItem(
+                    folder = folder,
+                    selected = folder.uri == selectedFolderUri,
+                    onClick = { onFolderOpen(folder.uri) },
+                    colors = colors,
+                    spacing = spacing,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderItem(
+    folder: HomeFolder,
+    selected: Boolean,
+    onClick: () -> Unit,
+    colors: AppColors,
+    spacing: AppSpacing,
+) {
+    val shape = RoundedCornerShape(12.dp)
+    val container = if (selected) colors.accent.copy(alpha = 0.18f) else colors.surfaceRaised
+    val border = if (selected) colors.accent.copy(alpha = 0.6f) else Color.Transparent
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(container)
+            .border(1.dp, border, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = spacing.m, vertical = spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+    ) {
+        AuralisArtwork(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp)),
+            artworkReference = folder.coverReference,
+        )
+        Column {
+            Text(
+                text = folder.name,
+                style = AppType.label.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                color = if (selected) colors.accent else colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = formatSongCount(folder.songCount),
+                style = AppType.label.copy(fontSize = 10.sp),
+                color = colors.textSecondary,
+                maxLines = 1,
             )
         }
     }

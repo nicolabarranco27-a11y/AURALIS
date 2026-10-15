@@ -29,4 +29,10 @@ data class Song(
     /** true = oculta de la biblioteca por el usuario (reversible). */
     val isHidden: Boolean = false,
     val coverReference: String? = null,
+    /**
+     * URI de arbol ("tree URI") de la carpeta elegida por el usuario (SAF) que
+     * contiene esta cancion. Es la identidad de la carpeta con la que Inicio
+     * la agrupa. null si el escaneo no pudo asociarla a ninguna.
+     */
+    val sourceFolderUri: String? = null,
 )

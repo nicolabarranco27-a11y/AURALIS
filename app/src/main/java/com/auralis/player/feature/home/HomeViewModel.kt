@@ -4,12 +4,17 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.auralis.player.core.common.format.folderDisplayName
+import com.auralis.player.core.common.folder.libraryFolders
+import com.auralis.player.core.common.library.mostPlayedSongs
 import com.auralis.player.data.scanner.LibraryScanMonitor
 import com.auralis.player.data.scanner.LibraryScanScheduler
 import com.auralis.player.data.scanner.ScanOutcome
 import com.auralis.player.data.scanner.hasAudioAccess
-import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.PlaybackState
 import com.auralis.player.domain.model.PlaylistSummary
+import com.auralis.player.domain.model.Song
+import com.auralis.player.domain.model.SongId
 import com.auralis.player.domain.repository.FavoritesRepository
 import com.auralis.player.domain.repository.LibraryFolderRepository
 import com.auralis.player.domain.repository.LibraryRepository
@@ -22,9 +27,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -39,29 +48,51 @@ sealed interface ScanDisplayStatus {
     data class Failed(val message: String) : ScanDisplayStatus
 }
 
+/** Carpeta elegida por el usuario, lista para mostrarse como entrada en Inicio. */
+data class HomeFolder(
+    val uri: String,
+    val name: String,
+    val songCount: Int,
+    val coverReference: String?,
+)
+
 data class HomeUiState(
     val hasPermission: Boolean = false,
     val scanStatus: ScanDisplayStatus = ScanDisplayStatus.Idle,
     val songs: List<Song> = emptyList(),
     val selectedFolders: Set<String> = emptySet(),
-    val favoriteIds: Set<com.auralis.player.domain.model.SongId> = emptySet(),
-    val playbackState: com.auralis.player.domain.model.PlaybackState = com.auralis.player.domain.model.PlaybackState.IDLE,
+    val favoriteIds: Set<SongId> = emptySet(),
+    val playbackState: PlaybackState = PlaybackState.IDLE,
     val isSearchActive: Boolean = false,
     val searchQuery: String = "",
     val searchResults: List<Song> = emptyList(),
     val playlists: List<PlaylistSummary> = emptyList(),
+    val folders: List<HomeFolder> = emptyList(),
+    val popularSongs: List<Song> = emptyList(),
 ) {
 
     val songCount: Int get() = songs.size
 }
 
-private data class CoreData(
+private data class CatalogData(
     val songs: List<Song>,
-    val status: LibraryScanMonitor.Status,
-    val playback: com.auralis.player.domain.model.PlaybackState,
     val selectedFolders: Set<String>,
+    val status: LibraryScanMonitor.Status,
     val playlists: List<PlaylistSummary>,
 )
+
+/** Derivados pesados de Inicio: solo cambian cuando cambia el catalogo. */
+private data class LibraryDerived(
+    val folders: List<HomeFolder>,
+    val popular: List<Song>,
+)
+
+private data class CoreHome(
+    val catalog: CatalogData,
+    val derived: LibraryDerived,
+    val playback: PlaybackState,
+)
+
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -102,15 +133,47 @@ class HomeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val coreFlow = combine(
-                libraryRepository.observeSongs(),
-                scanMonitor.status,
-                playbackRepository.observePlaybackState(),
-                folderRepository.observeSelectedFolders(),
-                playlistRepository.observePlaylistSummaries(),
-            ) { songs, status, playback, folders, playlists ->
-                CoreData(songs, status, playback, folders, playlists)
+            // Catalogo de canciones compartido: Room ya emite en su executor;
+            // el mapping/distinct se estabiliza fuera del hilo principal y se
+            // comparte entre los flujos que lo consumen.
+            val songsFlow = libraryRepository.observeSongs()
+                .distinctUntilChanged()
+                .flowOn(Dispatchers.Default)
+                .shareIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), replay = 1)
+
+            val selectedFoldersFlow = folderRepository.observeSelectedFolders()
+                .distinctUntilChanged()
+                .shareIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), replay = 1)
+
+            // Derivados pesados (O(n)/O(n log n)) dependen SOLO del catalogo y de
+            // las carpetas elegidas: nunca de los ticks de reproduccion (500 ms).
+            val libraryDerivedFlow = combine(songsFlow, selectedFoldersFlow) { songs, selected ->
+                LibraryDerived(
+                    folders = buildFolders(songs, selected),
+                    popular = mostPlayedSongs(songs, QUICK_ACCESS_LIMIT),
+                )
             }
+                .flowOn(Dispatchers.Default)
+                .distinctUntilChanged()
+                .shareIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), replay = 1)
+
+            val catalogFlow = combine(
+                songsFlow,
+                selectedFoldersFlow,
+                scanMonitor.status,
+                playlistRepository.observePlaylistSummaries(),
+            ) { songs, selected, status, playlists ->
+                CatalogData(songs, selected, status, playlists)
+            }
+                .flowOn(Dispatchers.Default)
+                .distinctUntilChanged()
+                .shareIn(viewModelScope, SharingStarted.WhileSubscribed(SUBSCRIBE_TIMEOUT_MS), replay = 1)
+
+            val coreFlow = combine(
+                catalogFlow,
+                libraryDerivedFlow,
+                playbackRepository.observePlaybackState(),
+            ) { catalog, derived, playback -> CoreHome(catalog, derived, playback) }
 
             combine(
                 coreFlow,
@@ -121,19 +184,39 @@ class HomeViewModel @Inject constructor(
             ) { core, active, query, results, favorites ->
                 HomeUiState(
                     hasPermission = context.hasAudioAccess(),
-                    scanStatus = core.status.toDisplayStatus(),
-                    songs = core.songs,
-                    selectedFolders = core.selectedFolders,
+                    scanStatus = core.catalog.status.toDisplayStatus(),
+                    songs = core.catalog.songs,
+                    selectedFolders = core.catalog.selectedFolders,
                     favoriteIds = favorites,
                     playbackState = core.playback,
                     isSearchActive = active,
                     searchQuery = query,
                     searchResults = results,
-                    playlists = core.playlists,
+                    playlists = core.catalog.playlists,
+                    folders = core.derived.folders,
+                    popularSongs = core.derived.popular,
                 )
-            }.collect { newState -> _uiState.value = newState }
+            }.collect { newState ->
+                _uiState.value = newState
+            }
         }
     }
+
+    /**
+     * Carpetas seleccionadas con su conteo y portada, ordenadas por nombre.
+     * Inicio las muestra como entradas tipo playlist bajo "Todas".
+     */
+    private fun buildFolders(songs: List<Song>, selectedFolders: Set<String>): List<HomeFolder> =
+        libraryFolders(songs, selectedFolders)
+            .map { folder ->
+                HomeFolder(
+                    uri = folder.uri,
+                    name = folderDisplayName(folder.uri),
+                    songCount = folder.songCount,
+                    coverReference = folder.coverReference,
+                )
+            }
+            .sortedBy { it.name.lowercase() }
 
     fun onToggleSearch(active: Boolean) {
         _isSearchActive.value = active
@@ -146,17 +229,25 @@ class HomeViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun onSongClick(song: Song) {
+    fun onSongClick(song: Song, scope: List<Song> = uiState.value.songs) {
+        if (scope.isEmpty()) return
         viewModelScope.launch {
-            val currentSongs = uiState.value.songs
-            val index = currentSongs.indexOf(song).coerceAtLeast(0)
+            val index = scope.indexOf(song).coerceAtLeast(0)
             val queueItems = withContext(Dispatchers.Default) {
-                currentSongs.map { 
+                scope.map {
                     com.auralis.player.domain.model.QueueItem(java.util.UUID.randomUUID().toString(), it)
                 }
             }
             playbackRepository.setQueue(queueItems, index)
         }
+    }
+
+    /**
+     * Reproduce una lista (p. ej. una carpeta o un filtro) desde su primer
+     * tema. La cola queda limitada a [scope] para no mezclar toda la biblioteca.
+     */
+    fun playAll(scope: List<Song>) {
+        scope.firstOrNull()?.let { onSongClick(it, scope) }
     }
 
     fun togglePlayPause() {
@@ -273,5 +364,13 @@ class HomeViewModel @Inject constructor(
             ScanOutcome.PermissionDenied -> ScanDisplayStatus.Idle
             is ScanOutcome.Failed -> ScanDisplayStatus.Failed(o.message)
         }
+    }
+
+    private companion object {
+        /** Canciones del carrusel de "acceso rapido". */
+        const val QUICK_ACCESS_LIMIT = 5
+
+        /** Mantiene vivo el catalogo compartido mientras la UI esta suscrita. */
+        const val SUBSCRIBE_TIMEOUT_MS = 5_000L
     }
 }

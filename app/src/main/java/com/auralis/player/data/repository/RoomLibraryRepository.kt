@@ -8,7 +8,9 @@ import com.auralis.player.domain.model.Genre
 import com.auralis.player.domain.model.Song
 import com.auralis.player.domain.model.SongId
 import com.auralis.player.domain.repository.LibraryRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -35,25 +37,37 @@ class RoomLibraryRepository @Inject constructor(
     override suspend fun getGenres(): List<Genre> = emptyList()
 
     override fun observeSongs(): Flow<List<Song>> =
-        libraryDao.observeSongs().map { songs -> songs.map { it.toDomain() } }
+        libraryDao.observeSongs()
+            .map { songs -> songs.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override fun observeAlbums(): Flow<List<Album>> =
-        libraryDao.observeAlbums().map { albums -> albums.map { it.toDomain() } }
+        libraryDao.observeAlbums()
+            .map { albums -> albums.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override fun observeArtists(): Flow<List<Artist>> =
-        libraryDao.observeArtists().map { artists -> artists.map { it.toDomain() } }
+        libraryDao.observeArtists()
+            .map { artists -> artists.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override fun observeGenres(): Flow<List<Genre>> =
         libraryDao.observeSongs().map { emptyList() }
 
     override fun observeSongsByAlbum(albumTitle: String, artist: String?): Flow<List<Song>> =
-        libraryDao.observeSongsByAlbum(albumTitle, artist).map { songs -> songs.map { it.toDomain() } }
+        libraryDao.observeSongsByAlbum(albumTitle, artist)
+            .map { songs -> songs.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override fun observeSongsByArtist(artistName: String): Flow<List<Song>> =
-        libraryDao.observeSongsByArtist(artistName).map { songs -> songs.map { it.toDomain() } }
+        libraryDao.observeSongsByArtist(artistName)
+            .map { songs -> songs.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override fun observeAlbumsByArtist(artistName: String): Flow<List<Album>> =
-        libraryDao.observeAlbumsByArtist(artistName).map { albums -> albums.map { it.toDomain() } }
+        libraryDao.observeAlbumsByArtist(artistName)
+            .map { albums -> albums.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun searchSongs(query: String): List<Song> =
         if (query.isBlank()) {
@@ -63,10 +77,15 @@ class RoomLibraryRepository @Inject constructor(
         }
 
     override fun observeHiddenSongs(): Flow<List<Song>> =
-        libraryDao.observeHiddenSongs().map { songs -> songs.map { it.toDomain() } }
+        libraryDao.observeHiddenSongs()
+            .map { songs -> songs.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     override suspend fun setSongHidden(songId: SongId, hidden: Boolean) =
         libraryDao.setHidden(songId.value, hidden)
+
+    override suspend fun registerPlay(songId: SongId, playedAtEpochMs: Long) =
+        libraryDao.registerPlay(songId.value, playedAtEpochMs)
 
     /** Los observe* de Room ya emiten en cada cambio; esta senal es explicita. */
     override fun observeLibraryChanges(): Flow<Unit> =

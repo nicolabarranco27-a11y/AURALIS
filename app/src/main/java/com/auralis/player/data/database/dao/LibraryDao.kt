@@ -150,6 +150,13 @@ interface LibraryDao {
     @Query("UPDATE songs SET isHidden = :isHidden WHERE id = :id")
     suspend fun setHidden(id: String, isHidden: Boolean)
 
+    /** Registra una reproduccion: incrementa el contador y actualiza la fecha. */
+    @Query(
+        "UPDATE songs SET playCount = playCount + 1, lastPlayedAtEpochMs = :playedAtEpochMs " +
+            "WHERE id = :id",
+    )
+    suspend fun registerPlay(id: String, playedAtEpochMs: Long)
+
     /**
      * Eliminacion logica por lotes: conserva playlists, favoritos e historico.
      * Se invoca con listas acotadas para no exceder el limite de variables

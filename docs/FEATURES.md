@@ -9,6 +9,7 @@ Este documento detalla las capacidades técnicas y de usuario actualmente presen
 >
 > **v0.2.0 (2026-10-12)**: escaneo automático por defecto + carpetas adicionales de música (explorador del sistema / SAF). Consolidada en `8304e58` + tag `v0.2.0`.
 > **2026-10-13/14**: efectos visuales del reproductor (aura que late al ritmo real, controles con `Icons.Rounded`, seek rediseñado, mini-player con progreso interactivo) y **gestión de biblioteca/playlists** (ocultar canciones con `isHidden`/Room v5, chip "Playlists" en Inicio, rediseño de Playlists) — **consolidados en `origin/main`**.
+> **2026-10-14/15**: **catálogo por carpetas seleccionadas** en Inicio → "Todas" (`sourceFolderUri`/Room v6: la app cataloga **solo** las canciones dentro de las carpetas elegidas; vista de carpetas + lista plana recursiva + cola acotada a la carpeta), **Acceso rápido = más reproducidas**, **blindajes** anti-vaciado de la biblioteca y **optimización de Inicio** para gama media-baja — **consolidados en `origin/main` (2026-10-15)**.
 
 ---
 
@@ -69,15 +70,17 @@ Este documento detalla las capacidades técnicas y de usuario actualmente presen
 
 | Funcionalidad | Estado | Detalle |
 |---|---|---|
-| Escaneo MediaStore + `WorkManager` | ✅ | Escaneo automático de toda la música del dispositivo (`IS_MUSIC`); proyección compatible (sin `DATA`) |
-| Carpetas adicionales de música (SAF) | ✅ | Explorador del sistema (`OpenDocumentTree`); añadir/quitar carpetas que se **suman** a la biblioteca |
-| Escaneo por defecto + carpetas que se suman | ✅ | `MediaStoreSource` escanea por defecto toda la música y añade el audio de las carpetas elegidas (`VOLUME_NAME` + `RELATIVE_PATH` en API 29+, o `DATA` en API < 29) aunque `IS_MUSIC = 0` |
+| Escaneo MediaStore + `WorkManager` | ✅ | Escaneo de las carpetas elegidas por el usuario vía MediaStore; proyección compatible (sin `DATA` en API 29+) |
+| Carpetas de música (SAF) | ✅ | Explorador del sistema (`OpenDocumentTree`); añadir/quitar carpetas. **Son el catálogo**: solo se indexa su audio |
+| Indexado restringido a carpetas seleccionadas | ✅ | `MediaStoreSource` recorre cada tree URI y descarta el audio fuera de ellas; `matchedSelectedFolder` resuelve la carpeta más específica (`VOLUME_NAME` + `RELATIVE_PATH` en API 29+, o `DATA` en API < 29) |
 | Exclusión de audio que no es música | ✅ | `AudioPathFilter` descarta mensajería (WhatsApp/Telegram/Signal), grabaciones y sonidos del sistema |
 | Gestión de carpetas desde Canciones y Ajustes | ✅ | Hoja inferior `MusicFoldersSheet`; CTA en el estado vacío de Inicio |
 | Escaneo de arranque si biblioteca vacía | ✅ | `HomeViewModel.onScreenShown` |
 | Playlists (crear/renombrar/eliminar/añadir/quitar) | ✅ | `PlaylistRepository` |
 | Playlists: estadísticas, edición y reordenación | ✅ | `PlaylistSummary` (canciones visibles/duración/portada); editar nombre **y** descripción; mover arriba/abajo; **eliminar desde Inicio** (long-press revela un tacho a la derecha → confirmación minimalista). Rediseño de lista y detalle |
 | Ocultar canciones de la biblioteca (reversible) | ✅ | `isHidden` (Room v5) + `SongActionsSheet` (long-press) + `HiddenSongsScreen` (restaurar); no borra el archivo |
+| Catálogo por carpetas seleccionadas | ✅ | La app cataloga **solo** las canciones dentro de las carpetas elegidas (SAF); el resto de la música del dispositivo no aparece. En Inicio → "Todas": **fila horizontal persistente** con las carpetas (portada, nº de canciones, ▶), la activa **resaltada** y **cambio con un solo toque** (1→2→3→2→1) sin entrar/volver; **re-tocar la carpeta activa la colapsa** y la fila se **auto-desplaza** a la activa. La selección **se mantiene al cambiar entre "Todas"/"Favoritos"/"Playlists"**. Debajo, la **lista plana recursiva** de la carpeta elegida y la cola se **limita a esa carpeta**. Sin carpeta seleccionada **no se listan canciones** (pista breve). Botón "Añadir carpeta" y estado vacío si no hay ninguna. `sourceFolderUri` persistido (Room v6) |
+| Acceso rápido (más reproducidas) | ✅ | Fila de Inicio con las canciones de mayor `playCount` (desempate por última reproducción); respaldo a favoritas y luego a las primeras. `registerPlay` incrementa el contador al iniciar cada canción |
 | Fila de canción unificada | ✅ | `SongListItem` compartido por todas las listas |
 | Vista Canciones | ✅ | |
 | Vista Álbumes + Detalle | ✅ | |

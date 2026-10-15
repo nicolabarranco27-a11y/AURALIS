@@ -1,7 +1,7 @@
 # Plan de Lanzamiento (Release Plan) - v1.0.0
 
 **Última versión entregable (release)**: v0.2.0 (`8304e58` + tag `v0.2.0`)
-**Repositorio**: v0.2.0 está consolidada en el commit `8304e58` con tag anotado `v0.2.0`. El pulido visual del reproductor (**aura reactiva al ritmo**, controles con íconos, seek) y la **gestión de biblioteca/playlists** (ocultar canciones Room v5, chip/rediseño de Playlists) se **consolidaron y subieron a `origin/main`** (2026-10-14).
+**Repositorio**: v0.2.0 está consolidada en el commit `8304e58` con tag anotado `v0.2.0`. El pulido visual del reproductor (**aura reactiva al ritmo**, controles con íconos, seek) y la **gestión de biblioteca/playlists** (ocultar canciones Room v5, chip/rediseño de Playlists) se **consolidaron y subieron a `origin/main`** (2026-10-14). El **catálogo por carpetas seleccionadas** (`sourceFolderUri`/Room v6), el **Acceso rápido por más reproducidas**, los **blindajes anti-vaciado de la biblioteca** y la **optimización de Inicio para gama media-baja** se **consolidaron y subieron a `origin/main`** (2026-10-15).
 
 > El plan hacia v1.0.0 se mantiene, pero los hitos se han ajustado al estado real del repositorio.
 
@@ -47,6 +47,16 @@ La consolidación de v0.2.0 está **hecha** (commit `8304e58` + tag `v0.2.0`) y 
 - [x] Test `HomeViewModelTest` con `FakeFavoritesRepository`
 - [x] Tests instrumentados (`app/src/androidTest/`) + script local
 - [x] CI con matriz de emuladores (`.github/workflows/android-ci.yml`)
+
+### Consolidación 2026-10-15 (en `origin/main`)
+- [x] Catálogo por carpetas seleccionadas: la app indexa **solo** el audio de las carpetas elegidas con SAF (`sourceFolderUri`/Room v6)
+- [x] Navegación persistente de carpetas en Inicio (fila persistente, colapso de la activa, auto-scroll, cola acotada a la carpeta)
+- [x] Acceso rápido = canciones más reproducidas (`playCount`, desempate por última reproducción)
+- [x] Blindaje: la biblioteca no se vacía por un escaneo sin resultados (`DefaultLibraryScanner`)
+- [x] Blindaje: Inicio no oculta playlists/carpetas cuando la biblioteca está vacía
+- [x] Blindaje: las subcarpetas elegidas explícitamente se respetan (`AudioPathFilter`)
+- [x] Copia de seguridad desactivada (`allowBackup="false"` + reglas de exclusión)
+- [x] Rendimiento (gama media-baja): los *ticks* de reproducción (500 ms) no recalculan los derivados de biblioteca; trabajo pesado en `Dispatchers.Default`
 
 ---
 

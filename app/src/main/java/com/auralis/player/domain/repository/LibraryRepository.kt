@@ -39,6 +39,9 @@ interface LibraryRepository {
     /** Oculta o restaura una cancion de la biblioteca. Reversible y no borra el archivo. */
     suspend fun setSongHidden(songId: SongId, hidden: Boolean)
 
+    /** Registra una reproduccion de la cancion (para "mas populares"). */
+    suspend fun registerPlay(songId: SongId, playedAtEpochMs: Long)
+
     /** Emite una senal cada vez que la biblioteca cambia. */
     fun observeLibraryChanges(): Flow<Unit>
 }

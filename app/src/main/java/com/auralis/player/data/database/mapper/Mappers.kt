@@ -54,6 +54,7 @@ fun SongEntity.toDomain(): Song = Song(
     isFavorite = isFavorite,
     isHidden = isHidden,
     coverReference = coverUri,
+    sourceFolderUri = sourceFolderUri,
 )
 
 fun Song.toEntity(
@@ -62,6 +63,7 @@ fun Song.toEntity(
     sizeBytes: Long?,
     path: String?,
     dateModifiedEpochMs: Long? = null,
+    sourceFolderUri: String? = this.sourceFolderUri,
 ): SongEntity = SongEntity(
     id = id.value,
     mediaStoreId = mediaStoreId,
@@ -85,6 +87,7 @@ fun Song.toEntity(
     isFavorite = isFavorite,
     isHidden = isHidden,
     coverUri = coverReference,
+    sourceFolderUri = sourceFolderUri,
     searchKey = buildSearchKey(title, artist, album),
     isAvailable = true,
 )

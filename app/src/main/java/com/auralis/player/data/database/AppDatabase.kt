@@ -23,7 +23,7 @@ import com.auralis.player.data.database.entity.SongEntity
         PlaylistEntity::class,
         PlaylistSongEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -74,6 +74,24 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE songs ADD COLUMN isHidden INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
+        /**
+         * Carpeta elegida por el usuario (SAF) que contiene cada cancion, para
+         * agrupar la biblioteca por carpetas en Inicio. Las filas existentes
+         * quedan con `sourceFolderUri = NULL` y se rellenan en el siguiente
+         * escaneo.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE songs ADD COLUMN sourceFolderUri TEXT DEFAULT NULL",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_songs_sourceFolderUri " +
+                        "ON songs(sourceFolderUri)",
                 )
             }
         }

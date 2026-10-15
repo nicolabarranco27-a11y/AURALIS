@@ -68,8 +68,8 @@ class DefaultLibraryScanner @Inject constructor(
             return ScanOutcome.PermissionDenied
         }
 
-        // Escaneo por defecto de toda la musica del dispositivo; las carpetas
-        // elegidas por el usuario se suman a esa base (ver MediaStoreSource).
+        // El catalogo se restringe a las carpetas elegidas por el usuario: el
+        // descubrimiento resuelve, por pista, la carpeta que la contiene.
         val selectedFolders = folderPreferences.selectedFolders()
         val discovered = discoverySource.getAudioFiles(selectedFolders)
         val existingById = libraryDao.getAllIncludingUnavailable()
@@ -96,6 +96,7 @@ class DefaultLibraryScanner @Inject constructor(
                     sizeBytes = audio.sizeBytes,
                     path = audio.path,
                     dateModifiedEpochMs = audio.dateModifiedEpochMs,
+                    sourceFolderUri = audio.sourceFolderUri,
                 )
                 .copy(isAvailable = true)
 
@@ -123,9 +124,19 @@ class DefaultLibraryScanner @Inject constructor(
         // Eliminacion logica por lotes: marcar solo las canciones que ya no
         // aparecen en MediaStore, acotando el numero de variables por consulta
         // para evitar "too many SQL variables" en bibliotecas grandes.
-        val toRemove = existingById.values
-            .filter { it.isAvailable && it.id !in seenSongIds }
-            .map { it.id }
+        //
+        // Salvaguarda: un descubrimiento vacio es indistinguible de un fallo
+        // transitorio (MediaStore aun no listo tras el arranque, volumen externo
+        // desmontado, SAF sin resolver o sin carpetas seleccionadas). Podar en
+        // ese caso vaciaria toda la biblioteca (canciones + favoritos en pantalla)
+        // y ocultaria las playlists, asi que nunca se poda con cero pistas.
+        val toRemove = if (discovered.isEmpty()) {
+            emptyList()
+        } else {
+            existingById.values
+                .filter { it.isAvailable && it.id !in seenSongIds }
+                .map { it.id }
+        }
         var removed = 0
         toRemove.chunked(BATCH_SIZE).forEach { chunk ->
             currentCoroutineContext().ensureActive()
@@ -147,7 +158,8 @@ class DefaultLibraryScanner @Inject constructor(
         existing.uri != audio.uri ||
             existing.dateModifiedEpochMs != audio.dateModifiedEpochMs ||
             existing.sizeBytes != audio.sizeBytes ||
-            existing.coverUri.isNullOrEmpty()
+            existing.coverUri.isNullOrEmpty() ||
+            existing.sourceFolderUri != audio.sourceFolderUri
 
     /** MediaStore provee la base; el extractor solo completa o corrige. */
     private suspend fun buildSong(audio: com.auralis.player.data.mediastore.MediaStoreAudio): Song {

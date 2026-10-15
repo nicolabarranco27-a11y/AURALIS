@@ -100,6 +100,7 @@ class FavoritesViewModelTest {
         override suspend fun searchSongs(query: String): List<Song> = emptyList()
         override fun observeHiddenSongs(): Flow<List<Song>> = emptyFlow()
         override suspend fun setSongHidden(songId: SongId, hidden: Boolean) {}
+        override suspend fun registerPlay(songId: SongId, playedAtEpochMs: Long) {}
     }
 
     private class FakeFavoritesRepository(initial: Set<SongId>) : FavoritesRepository {
