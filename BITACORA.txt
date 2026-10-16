@@ -1,0 +1,1145 @@
+================================================================================
+BITACORA DEL PROYECTO AURALIS
+Bitacora viva: historial de sesiones, funcionalidades, cambios y decisiones
+================================================================================
+
+Proyecto        : Auralis (reproductor de musica local para Android)
+Paquete         : com.auralis.player
+Autor/mantenedor: EstalingradoCorp <soporte@estalingradocorp.com>
+Repositorio     : https://github.com/nicolabarranco27-a11y/AURALIS.git
+Sitio web       : https://nicolabarranco27-a11y.github.io/AURALIS/
+Ultima actualizacion de esta bitacora : 2026-10-15
+Version de la app documentada          : 0.2.0 (versionCode 2)
+Rama principal  : main (trackea origin/main)
+Ubicacion       : BITACORA.txt (raiz del repositorio; NO se publica en el sitio;
+                  GitHub Pages sirve desde la carpeta docs/)
+
+
+================================================================================
+INDICE
+================================================================================
+  1. COMO USAR ESTE DOCUMENTO (retomar contexto desde cualquier punto)
+  2. FICHA DEL PROYECTO
+  3. HISTORIAL CRONOLOGICO DE SESIONES / CHATS
+  4. FUNCIONALIDADES IMPLEMENTADAS
+  5. ARQUITECTURA
+  6. MODELO DE DATOS (Room)
+  7. SISTEMA DE DISENO
+  8. DECISIONES TECNICAS (ADR 001-022)
+  9. BUGS: CONOCIDOS, PARCIALES Y RESUELTOS
+ 10. TESTS Y CI/CD
+ 11. SITIO WEB Y PUBLICACION
+ 12. FLUJO DE TRABAJO (build, tests, lint, git, documentacion)
+ 13. REGISTRO DE CAMBIOS (changelog condensado)
+ 14. PENDIENTES / ROADMAP Y ANEXOS
+
+
+================================================================================
+1. COMO USAR ESTE DOCUMENTO (retomar contexto desde cualquier punto)
+================================================================================
+
+1.1 Proposito
+-------------
+Este archivo es la bitacora fundamental del proyecto Auralis. Reune, en un solo
+lugar y en texto plano, TODO el contexto necesario para que una persona o un
+agente de IA puedan retomar el trabajo desde cualquier punto sin depender de
+memoria externa ni de transcripciones de chat.
+
+1.2 Que contiene
+----------------
+  - El estado real del proyecto (fuente de verdad: ver docs/PROJECT_STATUS.md).
+  - El historial cronologico de las sesiones de trabajo (que se pidio, que se
+    hizo, en que commits, con que verificacion).
+  - El catalogo completo de funcionalidades implementadas.
+  - La arquitectura, el modelo de datos y el sistema de diseno.
+  - Las decisiones tecnicas (ADR) y sus reversiones.
+  - Bugs conocidos/parciales/resueltos.
+  - El estado de tests y CI/CD.
+  - El estado del sitio web y la publicacion.
+  - El flujo de trabajo y las convenciones del repositorio.
+  - Los pendientes y el roadmap.
+
+1.3 Jerarquia de fuentes de verdad (que gana ante discrepancias)
+----------------------------------------------------------------
+  1) El CODIGO en el repositorio (siempre la verdad ultima).
+  2) docs/PROJECT_STATUS.md  -> fuente principal del estado.
+  3) CHANGELOG.md            -> cambios entregados/en desarrollo confirmado.
+  4) docs/DECISIONS.md       -> razonamiento de las decisiones (ADR).
+  5) docs/FEATURES.md        -> catalogo por funcionalidad.
+  6) docs/ARCHITECTURE.md    -> arquitectura.
+  7) docs/DESIGN_SYSTEM.md   -> tokens y componentes.
+  8) README.md               -> presentacion/stack.
+  9) Esta BITACORA.txt       -> sintesis y contexto narrativo.
+  Regla: si hay discrepancia, PROJECT_STATUS.md gana sobre los demas docs, y el
+  codigo gana sobre todo.
+
+1.4 Como retomar el trabajo (checklist rapido)
+----------------------------------------------
+  1) Leer "2. FICHA DEL PROYECTO" y "SECCION 3" (ultima sesion) de este archivo.
+  2) Correr `git status` y `git log --oneline -10` para ver el estado real.
+  3) Correr `./gradlew testDebugUnitTest lintDebug assembleDebug` (ver seccion 12).
+  4) Revisar docs/PROJECT_STATUS.md para el estado mas reciente.
+  5) Revisar la seccion 14 (PENDIENTES) para saber que sigue.
+  6) Antes de tocar UI, leer la seccion 7 (Sistema de Diseno) y los guardrails
+     de AGENTS.md.
+
+1.5 Convenciones de este documento
+----------------------------------
+  - Idioma: espanol. Formato: texto plano ASCII/UTF-8, sin Markdown.
+  - Fechas: AAAA-MM-DD.
+  - Commits: se referencian por su hash corto (7 caracteres).
+  - Estados: [hecho] / [pendiente] / [en desarrollo] / [bloqueado].
+  - "Consolidado" = esta en un commit subido a origin/main (no solo en working
+    tree).
+  - Nota sobre acentos: por robustez de codificacion, esta bitacora evita
+    tildes/epsilones en el texto plano (los documentos .md del repo si las usan).
+
+1.6 Glosario / siglas
+---------------------
+  - ADR        : Architecture Decision Record (registro de decision tecnica).
+  - AAB/APK    : Android App Bundle / Android Package.
+  - CI         : Integracion Continua (GitHub Actions).
+  - DAO        : Data Access Object (Room).
+  - DI         : Inyeccion de dependencias (Hilt).
+  - GSC        : Google Search Console.
+  - KSP        : Kotlin Symbol Processing (para Room y Hilt).
+  - MVVM       : Model-View-ViewModel.
+  - SAF        : Storage Access Framework (explorador de documentos de Android).
+  - SDK        : compileSdk 37 / minSdk 26 / targetSdk 36.
+  - tree URI   : URI de carpeta otorgado por SAF (identidad estable de carpeta).
+  - Tick       : emision periodica del estado de reproduccion (cada 500 ms).
+
+
+================================================================================
+2. FICHA DEL PROYECTO
+================================================================================
+
+2.1 Identidad
+-------------
+  Nombre comercial : Auralis
+  Descripcion      : Reproductor de musica local para Android; minimalista, sin
+                     anuncios, 100% offline (privacidad por diseno).
+  Paquete          : com.auralis.player
+  Empresa          : EstalingradoCorp
+  Email de soporte : soporte@estalingradocorp.com
+  Licencia         : Apache License 2.0 (Copyright 2025 EstalingradoCorp)
+
+2.2 Stack tecnologico (segun README.md)
+----------------------------------------
+  Lenguaje        : Kotlin 2.3.21
+  UI              : Jetpack Compose + Material 3 (BOM 2026.08.00)
+  Navegacion      : Navigation Compose 2.9.8
+  DI              : Hilt 2.60.1
+  Base de datos   : Room 2.8.4 (con KSP)
+  Reproduccion    : Media3 / ExoPlayer 1.11.0
+  Background Work : WorkManager + Hilt 2.11.2
+  Async           : Coroutines + Flow 1.11.0
+  Testing         : JUnit, Robolectric, Coroutines Test, AndroidX Test (instrumentados)
+  Build           : Gradle KTS (Kotlin DSL), AGP 9.3.2
+  JDK             : 21 (local y CI)
+
+2.3 Versionado / SDK
+--------------------
+  versionName : "0.2.0"
+  versionCode : 2
+  compileSdk  : 37
+  minSdk      : 26 (Android 8.0)
+  targetSdk   : 36
+  Ultima release : v0.2.0 (commit 8304e58 + tag anotado v0.2.0)
+  Versionado  : Semantic Versioning (ver CHANGELOG.md). Ej: 1.2.3 -> code 10203.
+
+2.4 Permisos declarados (AndroidManifest.xml)
+---------------------------------------------
+  READ_MEDIA_AUDIO                 (Android 13+; leer audio)
+  READ_EXTERNAL_STORAGE            (maxSdkVersion 32; leer almacenamiento)
+  POST_NOTIFICATIONS               (Android 13+; controles en notificacion)
+  FOREGROUND_SERVICE               (servicio en primer plano)
+  FOREGROUND_SERVICE_MEDIA_PLAYBACK (reproduccion en foreground)
+  WAKE_LOCK                        (seguir reproduciendo con pantalla apagada)
+  MODIFY_AUDIO_SETTINGS            (efectos AudioFX / ecualizador)
+  NOTA: NO se declara RECORD_AUDIO (el aura es reactiva SIN permisos; ver ADR 019).
+
+2.5 Entry points y build
+------------------------
+  App.kt (Application, @HiltAndroidApp) y MainActivity.kt (Compose, permisos
+  runtime). Variants: debug (sin ofuscacion) y release (ProGuard/R8 +
+  shrinkResources). Firma de release via local.properties (storeFile, etc.).
+
+2.6 Estado de sincronizacion (al escribir esta bitacora)
+--------------------------------------------------------
+  main == origin/main (sincronizado). Working tree limpio antes de agregar este
+  archivo. Ultimo commit de la serie: merge 929ef6e (2026-10-15).
+
+
+================================================================================
+3. HISTORIAL CRONOLOGICO DE SESIONES / CHATS
+================================================================================
+
+NOTA METODOLOGICA: no existen transcripciones literales de los chats anteriores.
+Esta seccion se RECONSTRUYE de forma fiel a partir de: (a) el historial de git
+(commit 59403f7 del 2026-08-28 hasta 929ef6e del 2026-10-15), (b) la
+documentacion viva (CHANGELOG, PROJECT_STATUS, DECISIONS, etc.) y (c) el contexto
+de las sesiones recientes. Describe QUE se pidio y QUE se hizo, no palabras
+textuales.
+
+--------------------------------------------------------------------------------
+SESION 0 - Origen del proyecto (2026-08-28/29)
+--------------------------------------------------------------------------------
+  Objetivo : Crear la base de Auralis v0.1.0.
+  Se hizo  :
+    - Commit inicial 59403f7: "feat: initial commit - Auralis v0.1.0".
+      Incluye reproduccion (ExoPlayer/Media3 + MediaSessionService), escaneo
+      MediaStore + WorkManager, vistas Canciones/Albumes/Artistas, Home con
+      mini-player, Player completo, Drawer, tema Material 3, Clean Architecture,
+      Hilt, Room con Flow, Coroutines, KSP, ProGuard/R8 y tests base.
+    - 15a3cbb (2026-08-29): agrega gradle-wrapper.properties y lo des-ignora.
+  Verificacion : no registrada en el repo para esta etapa.
+
+--------------------------------------------------------------------------------
+SESION 1 - Estabilizacion de CI (2026-08-30/09-01)
+--------------------------------------------------------------------------------
+  Objetivo : Hacer verde el pipeline de GitHub Actions.
+  Se hizo  :
+    - 1cc22f0 (08-30): usar Java 21 en GitHub Actions.
+    - 741d765 (08-30): corregir memoria del daemon de Gradle en CI.
+    - 3503cac (08-31): configurar memoria del daemon de Gradle.
+    - 971c677 (08-31): corregir permisos del wrapper en CI.
+    - e7782d1 (09-01): paso de diagnostico de memoria del daemon.
+    - 9b52c24 (09-01): GRADLE_OPTS -Xmx2048m.
+    - 9ac9aa5 (09-01): subir heap del daemon a 4096m y limpiar diagnosticos.
+    - 03abea1 (09-01): GRADLE_OPTS con heap y metaspace.
+  Resultado : CI estable con JDK 21.
+
+--------------------------------------------------------------------------------
+SESION 2 - Base funcional en working tree (decisiones 2026-09-03/05)
+--------------------------------------------------------------------------------
+  Objetivo : Consolidar funcionalidad core que venia desarrollandose.
+  Decisiones tomadas en esas fechas (ver ADR 001-008): SharedPreferences para el
+  ecualizador (001), normalizacion de busqueda REPLACE/LOWER (002),
+  audioSessionId dinamica (003), VerticalFader propio (004), Material Icons
+  Rounded (005), LinearProgressIndicator 3dp en mini-player (006), pill de item
+  activo en Drawer (007), AuralisArtwork con fallback MusicNote (008).
+  Se consolido mas tarde, el 2026-10-11/12.
+
+--------------------------------------------------------------------------------
+SESION 3 - Documentacion viva + repaso de UX de reproduccion (2026-10-11)
+--------------------------------------------------------------------------------
+  Objetivo : Instaurar el sistema de documentacion continua; repasar la UX.
+  Se hizo  :
+    - 9735840: "docs: add living documentation system, AGENTS guide and config".
+    - 8239939: "feat: playback UX overhaul, stability fixes and accessibility".
+  Resultado : Nace AGENTS.md y el conjunto docs/*.md.
+
+--------------------------------------------------------------------------------
+SESION 4 - Consolidacion de features core + v0.2.0 (2026-10-12)
+--------------------------------------------------------------------------------
+  Objetivo : Consolidar features, renovar marca, agregar v0.2.0.
+  Se hizo  :
+    - eda76fb: features core + nuevo logo/icono + version en el Drawer + CI.
+    - 2fffb84 y 6135bc2: fixes del workflow (bit ejecutable de gradlew; steps
+      duplicado).
+    - 8304e58 (2026-10-12): v0.2.0 "escaneo automatico por defecto y carpetas
+      adicionales (SAF)" + tag v0.2.0.
+    - da8031c: marcar Auralis como beta en desarrollo.
+  Decisiones clave : ADR 009 (POST_NOTIFICATIONS runtime), ADR 010/010b (nuevo
+  logo e icono; version en Drawer), ADR 011 (tests instrumentados + CI matriz de
+  emuladores), ADR 012 (escaneo por defecto + carpetas que se suman).
+  Verificacion : assembleRelease + assembleDebug + testDebugUnitTest + lintDebug
+  + assembleDebugAndroidTest -> BUILD SUCCESSFUL.
+
+--------------------------------------------------------------------------------
+SESION 5 - Sitio web de descarga (2026-10-13)
+--------------------------------------------------------------------------------
+  Objetivo : Publicar un sitio de descarga de Auralis.
+  Se hizo  :
+    - 4104260: agrega sitio en docs/.
+    - 31e722e: publica el APK en el sitio y apunta el boton a la descarga local.
+    - e8ee621: corrige el enlace de EstalingradoCorp.
+    - 83cdf5f: actualiza capturas y APK, mejora el enmarcado de imagenes.
+  Resultado : GitHub Pages sirviendo desde docs/.
+
+--------------------------------------------------------------------------------
+SESION 6 - Efectos visuales del reproductor + gestion de biblioteca/playlists
+           (2026-10-13/14)
+--------------------------------------------------------------------------------
+  Objetivo : Dar vida al reproductor (aura reactiva) y mejorar la gestion.
+  Se hizo  :
+    - 65661ae (2026-10-14): "feat: aura reactiva al ritmo, mini-player con scrub
+      y gestion de biblioteca/playlists".
+    - 6e6660f (2026-10-14): merge de origin/main (sitio docs y beta).
+  Decisiones clave : ADR 013 (color dominante propio sin Palette), ADR 014
+  (ocultar canciones en vez de borrar; Room v5), ADR 015 (estadisticas de
+  playlist en SQL), ADR 016 (mini-player unico y minimalista), ADR 017 (aura =
+  luz ambiental fluida), ADR 018 (scrub interactivo en el mini-player), ADR 019
+  (aura reactiva al ritmo SIN permisos, via RhythmAudioProcessor).
+  Verificacion : assembleDebug + testDebugUnitTest + lintDebug -> BUILD
+  SUCCESSFUL. APK de esa consolidacion: 25.814.338 bytes (historico).
+
+--------------------------------------------------------------------------------
+SESION 7 - Catalogo por carpetas + rendimiento (2026-10-14/15)
+--------------------------------------------------------------------------------
+  Objetivo : Que el catalogo sean SOLO las carpetas elegidas; optimizar Inicio.
+  Se hizo  :
+    - 2106d9c (2026-10-15): "feat: catalogo por carpetas seleccionadas,
+      blindajes de biblioteca y rendimiento de Inicio".
+  Decisiones clave : ADR 020 (el catalogo son solo las carpetas seleccionadas;
+  REVIERTE ADR 012; Room v6 sourceFolderUri), ADR 021 (Acceso rapido por mas
+  reproducidas), ADR 022 (desacople del tick de reproduccion de los derivados).
+  Blindajes : DefaultLibraryScanner no vacia la biblioteca con escaneo vacio;
+  Inicio solo muestra "Sin musica" si no hay canciones/playlists/carpetas;
+  MediaStoreSource respeta subcarpetas elegidas; backup desactivado.
+  Rendimiento : songsFlow/selectedFoldersFlow con shareIn + flowOn(Default);
+  libraryDerivedFlow recalcula folders/popularSongs solo cuando cambia el
+  catalogo; RoomLibraryRepository.observe*() con .flowOn(Default).
+  Tests : 158 tests, 0 fallos. Test nuevo:
+  "los ticks de reproduccion no recalculan los derivados de biblioteca".
+  Verificacion : testDebugUnitTest + lintDebug + assembleDebug -> BUILD
+  SUCCESSFUL. APK: 25.604.514 bytes,
+  SHA-256 07720B4D6C330F606F981852FB031B6DAEE60019ECFBE7EEFC1645F3EF6948D5.
+
+--------------------------------------------------------------------------------
+SESION 8 - Consolidacion de documentacion + sitio + merges (2026-10-15)
+--------------------------------------------------------------------------------
+  Objetivo : "Actualizar toda la documentacion y el repositorio".
+  Scope elegido por el usuario : Docs + commit + push + APK del sitio.
+  Se hizo  :
+    - 0e0bd5d: registra el hash 2106d9c en el historial de consolidacion.
+    - 9abac17: merge de origin/main (resolucion: APK -> nuestro;
+      index.html -> imagen de origin + tamano/hash nuestros).
+    - 0873360 / f5dee9b / 522192c: nuevas capturas del hero, esquinas
+      redondeadas y anillo interior sutil (de origin/main).
+  Documentacion consolidada : README.md, CHANGELOG.md, docs/PROJECT_STATUS.md,
+  docs/FEATURES.md, docs/ARCHITECTURE.md, docs/DECISIONS.md (ADR 020/021/022),
+  docs/RELEASE_PLAN.md, docs/PLAY_STORE_CHECKLIST.md, docs/PRODUCT.md.
+  Sitio : docs/Auralis.apk = 25.604.514 bytes; docs/index.html con tamano
+  "24,4 MB" y SHA-256 07720b4d...48d5.
+  Verificacion : main == origin/main; working tree limpio.
+
+--------------------------------------------------------------------------------
+SESION 9 - Verificacion en Google Search Console (2026-10-15)
+--------------------------------------------------------------------------------
+  Objetivo : Verificar el sitio en Google Search Console con un archivo HTML.
+  Contexto : GitHub Pages sirve desde docs/. El nombre del archivo y su contenido
+  deben coincidir (google-site-verification: google<hash>.html).
+  Se hizo  :
+    - Se detecto que el archivo viejo (google186b1953cb6a2b78.html) tenia el
+      nombre y el contenido DESALINEADOS; el usuario lo borro y descargo uno
+      nuevo.
+    - Archivo nuevo: google2e968a38df969ade.html -> nombre y contenido SI
+      coinciden.
+    - Se copio a docs/google2e968a38df969ade.html (bytes identicos; SHA-256
+      7FCA7F34...EA44; 53 bytes).
+    - Commit ea7035a "docs: agrega archivo de verificacion de Google Search
+      Console"; merge 929ef6e (integrando 3 commits de docs de origin); push.
+    - Verificado en vivo: la URL responde 200 y el contenido coincide.
+      URL: https://nicolabarranco27-a11y.github.io/AURALIS/google2e968a38df969ade.html
+  Estado : propiedad verificada y URL en cola prioritaria de indexacion. No hay
+  sitemap.xml ni robots.txt (el robots.txt de un project page no aplica: Google
+  solo lo lee en la raiz del host).
+
+--------------------------------------------------------------------------------
+SESION 10 - Creacion de esta bitacora (2026-10-15)
+--------------------------------------------------------------------------------
+  Objetivo : Crear BITACORA.txt como documento fundamental y vivo.
+  Decisiones del usuario : (1) BITACORA.txt en la raiz (no se publica en el
+  sitio); (2) historial reconstruido desde git + docs (no literal); (3) commit +
+  push a origin/main.
+  Resultado : este archivo.
+
+--------------------------------------------------------------------------------
+RESUMEN DE COMMITS (git log, orden cronologico)
+--------------------------------------------------------------------------------
+  59403f7 | 2026-08-28 | feat: initial commit - Auralis v0.1.0
+  15a3cbb | 2026-08-29 | fix: add missing gradle-wrapper.properties and un-ignore it
+  1cc22f0 | 2026-08-30 | fix: use Java 21 in GitHub Actions
+  741d765 | 2026-08-30 | fix: fix GitHub Actions Gradle daemon memory
+  3503cac | 2026-08-31 | fix: configure Gradle daemon memory
+  971c677 | 2026-08-31 | fix: fix gradle wrapper permissions in CI
+  e7782d1 | 2026-09-01 | ci: add diagnostic step for Gradle daemon memory inspection
+  9b52c24 | 2026-09-01 | ci: set GRADLE_OPTS to enforce -Xmx2048m on GitHub Actions
+  9ac9aa5 | 2026-09-01 | fix: increase Gradle daemon heap to 4096m and clean up CI
+  03abea1 | 2026-09-01 | ci: add GRADLE_OPTS with increased memory heap and metaspace
+  9735840 | 2026-10-11 | docs: add living documentation system, AGENTS guide and config
+  8239939 | 2026-10-11 | feat: playback UX overhaul, stability fixes and accessibility
+  eda76fb | 2026-10-12 | feat: consolidar features core, nuevo logo/icono, version en drawer y CI
+  2fffb84 | 2026-10-12 | ci: fix gradlew executable bit and add chmod step to Android CI
+  6135bc2 | 2026-10-12 | ci: fix duplicate steps key in Android CI workflow
+  4104260 | 2026-10-13 | docs: agrega sitio web de descarga de Auralis en docs/
+  31e722e | 2026-10-13 | docs: publica el APK en el sitio y apunta el boton a la descarga local
+  e8ee621 | 2026-10-13 | docs: corrige el enlace de EstalingradoCorp a index.html
+  8304e58 | 2026-10-12 | feat: escaneo automatico por defecto y carpetas adicionales (v0.2.0)
+  da8031c | 2026-10-13 | docs: marca a Auralis como version beta en desarrollo
+  83cdf5f | 2026-10-13 | docs: actualiza capturas y APK, mejora el enmarcado de las imagenes
+  65661ae | 2026-10-14 | feat: aura reactiva al ritmo, mini-player con scrub y gestion de biblioteca/playlists
+  6e6660f | 2026-10-14 | Merge origin/main (sitio docs y beta) en main
+  916470d | 2026-10-14 | docs: actualiza captura derecha, ecualizador y APK (v0.2.0)
+  2106d9c | 2026-10-15 | feat: catalogo por carpetas seleccionadas, blindajes de biblioteca y rendimiento de Inicio
+  0e0bd5d | 2026-10-15 | docs: registra el hash 2106d9c en el historial de consolidacion
+  9abac17 | 2026-10-15 | Merge remote-tracking branch 'origin/main'
+  0873360 | 2026-10-15 | docs: hero con 3 capturas nuevas (inicio y reproduccion) y ecualizador actualizado
+  f5dee9b | 2026-10-15 | docs: redondea las esquinas de las capturas igual que el marco de los telefonos
+  ea7035a | 2026-10-15 | docs: agrega archivo de verificacion de Google Search Console
+  522192c | 2026-10-15 | docs: anillo interior sutil en las capturas para marcar el redondeo
+  929ef6e | 2026-10-15 | Merge remote-tracking branch 'origin/main'
+
+
+================================================================================
+4. FUNCIONALIDADES IMPLEMENTADAS
+================================================================================
+
+Todos los items siguientes estan IMPLEMENTADOS y CONSOLIDADOS en el repositorio
+(version 0.2.0 / code 2). Los no implementados se listan en la seccion 14.
+
+4.1 Reproduccion (core)
+-----------------------
+  [hecho] Motor Media3 (ExoPlayer) + MediaSessionService (foreground service).
+  [hecho] Play / Pausa / Siguiente / Anterior / Seek.
+  [hecho] Shuffle (aleatorio) on/off.
+  [hecho] Repeat: OFF / ONE / ALL.
+  [hecho] Sincronizacion mini-player <-> Player (MusicServiceConnection).
+  [hecho] Cola dinamica (swipe-to-queue) con overlay de feedback, en Home,
+          Songs, AlbumDetail, ArtistDetail y PlaylistDetail.
+  [hecho] Sleep Timer real (startSleepTimer/cancelSleepTimer) con dialogo de
+          presets y pausa automatica al agotarse.
+  [hecho] Controles en notificacion y pantalla de bloqueo (POST_NOTIFICATIONS
+          en runtime en Android 13+).
+
+4.2 Audio avanzado
+-----------------
+  [hecho] Ecualizador real AudioFX de 5 bandas integrado en PlaybackService.
+  [hecho] Presets (Normal / Bass Boost / Rock / Pop).
+  [hecho] Persistencia del ecualizador (EqualizerPreferences, SharedPreferences).
+  [hecho] audioSessionId dinamica (Player.Listener.onAudioSessionIdChanged).
+  [hecho] UI del ecualizador en PlayerScreen con el composable VerticalFader.
+
+4.3 Biblioteca
+--------------
+  [hecho] Catalogo por carpetas seleccionadas (SAF). La app indexa SOLO el audio
+          dentro de las carpetas elegidas; el resto no aparece en ninguna vista.
+  [hecho] Escaneo via MediaStore + LibraryScanner programado con WorkManager.
+  [hecho] Escaneo de arranque cuando ya hay permiso y la biblioteca esta vacia.
+  [hecho] Vistas: Canciones, Albumes (+ detalle), Artistas (+ detalle).
+  [hecho] Playlists: crear, renombrar, eliminar, anadir/quitar canciones,
+          reordenar (mover arriba/abajo) y editar descripcion.
+  [hecho] Estadisticas de playlist (PlaylistSummary): canciones visibles,
+          duracion total y portada; calculadas en SQL.
+  [hecho] Ocultar canciones de la biblioteca (reversible, isHidden; NO borra el
+          archivo) via long-press -> SongActionsSheet. Restauracion en
+          Ajustes -> Canciones ocultas.
+  [hecho] Fila de cancion unificada (SongListItem) en todas las listas.
+  [hecho] Exposicion de carpetas en Inicio -> "Todas": fila horizontal
+          persistente (FolderBrowser/FolderItem); un toque cambia de carpeta
+          (1->2->3->2->1); re-tocar la activa la colapsa; auto-scroll a la
+          activa; lista plana recursiva; cola acotada a la carpeta.
+  [hecho] Acceso rapido = canciones mas reproducidas (playCount, desempate por
+          ultima reproduccion; respaldo a favoritas y luego a las primeras).
+  [hecho] Exclusion de audio que no es musica (AudioPathFilter): mensajeria
+          (WhatsApp/Telegram/Signal), grabaciones y sonidos del sistema.
+  [hecho] Dialogo "Detalles de la Pista" (titulo/artista/album/duracion/origen).
+  [pendiente] Bitrate/sample rate/formato (metadatos tecnicos) - ver seccion 14.
+
+4.4 Favoritos
+-------------
+  [hecho] Persistencia en Room (FavoritesDao / RoomFavoritesRepository):
+          toggleFavorite / isFavorite / observeFavorites.
+  [hecho] Vista dedicada de Favoritos (ruta en el Drawer).
+  [hecho] Toggle de favorito en las filas (Home, Songs, AlbumDetail,
+          ArtistDetail, PlaylistDetail).
+
+4.5 Busqueda
+------------
+  [hecho] searchSongs(query) con normalizacion SQLite (REPLACE + LOWER) y clave
+          searchKey premormalizada (Room v4).
+  [hecho] Autocomplete con overlay de sugerencias en Home
+          (HomeViewModel._searchQuery + SearchSuggestionsOverlay).
+
+4.6 Inicio (Home) y navegacion
+------------------------------
+  [hecho] Filtros por chips: "Todas" / "Favoritos" / "Playlists" (inline).
+  [hecho] Chip "Playlists": listado inline, crear rapido (+), tocar navega;
+          long-press revela tacho de basura -> confirmacion minimalista; el
+          tacho se auto-oculta a los 3 s y se cancela al tocar fuera.
+  [hecho] Encabezado de seccion segun chip activo
+          ("CANCIONES"/"FAVORITOS"/"PLAYLISTS").
+  [hecho] El filtro se conserva al navegar (rememberSaveable).
+  [hecho] Drawer lateral: Inicio, Canciones, Albumes, Artistas, Playlists,
+          Favoritos, Ajustes; item activo resaltado (pill animado) via
+          currentBackStackEntryAsState.
+  [hecho] Drawer muestra la version de la app (v0.2.0) junto a EstalingradoCorp.
+
+4.7 Interfaz, tema y mini-player
+--------------------------------
+  [hecho] Material 3 con ReproductorThemeTokens (Color/Type/Shape/Spacing/Motion).
+  [hecho] Tema por defecto oscuro; seleccion de tema persistida
+          (claro/oscuro/sistema) via ThemeController.
+  [hecho] AuralisArtwork con fallback Icons.Rounded.MusicNote.
+  [hecho] Iconografia Icons.Rounded.* / Icons.AutoMirrored.Rounded.*
+          (material-icons-extended).
+  [hecho] Logo/icono: launcher adaptativo (fondo #000000) + logo circular
+          in-app (drawable/logo_auralis.png).
+  [hecho] Mini-player unico (MiniPlayerBar) en todas las pantallas: caratula +
+          metadatos + play/pausa + linea de progreso de 3dp interactiva
+          (scrubber: tap o arrastre para saltar; tiempo solo durante el gesto).
+          Posicion refrescada cada 500 ms.
+  [hecho] PlayerScreen redisenado: caratula tipo vinilo circular (72% del
+          contenedor) con aura, halo glow del Play tintado, visualizador
+          animado, controles minimalistas con micro-animacion y seek con track
+          gradiente + thumb de color solido (auraColor).
+  [hecho] Aura de color animada y viva (VinylAura): disco de luz + halo con pico
+          en el borde + cuatro brumas que orbitan, respiran y dan empuje angular
+          en cada golpe; late al ritmo real (graves + agudos) SIN permisos;
+          respaldo rojo vivo #C62828; color derivado de la caratula, saturado/
+          aclarado en HSV.
+  [hecho] PlaybackEnergy / RhythmAudioProcessor / AuraRenderersFactory: ritmo
+          real desde el PCM de Media3 (passthrough), con pulso sintetico de
+          respaldo.
+
+4.8 Ajustes
+-----------
+  [hecho] Pantalla de Ajustes real (SettingsScreen).
+  [hecho] Seleccion de tema persistida (ThemeController).
+  [hecho] Gestion de carpetas (Biblioteca) y acceso a "Canciones ocultas".
+  [hecho] Persistencia de ajustes de audio (ecualizador) en SharedPreferences.
+  [pendiente] Migracion a DataStore - ver seccion 14.
+
+
+================================================================================
+5. ARQUITECTURA
+================================================================================
+
+5.1 Capas (Clean Architecture + MVVM + Jetpack Compose)
+-------------------------------------------------------
+  1) domain/   : modelos de negocio + interfaces de repositorio. SIN dependencias
+                 de Android (solo Coroutines/Flow). Ej: Song, Album, Artist,
+                 Playlist, PlaylistSummary, QueueItem, PlaybackState, RepeatMode.
+                 Interfaces: LibraryRepository, LibraryFolderRepository,
+                 PlaybackRepository, PlaylistRepository, FavoritesRepository,
+                 ArtworkColorRepository.
+  2) data/     : implementaciones. Room (FavoritesDao, PlaylistDao, LibraryDao),
+                 MediaStore (MediaStoreSource, AudioPathFilter), Media3
+                 (Media3PlaybackRepository), metadata, scanner (Default/
+                 LibraryScanner, Worker, Scheduler, Monitor), repositorios
+                 concretos, preferencias (EqualizerPreferences, ThemeController,
+                 MusicFolderPreferences).
+  3) feature/  : UI por pantalla (Compose + ViewModel con StateFlow).
+                 Navegacion: ReproductorNavHost.
+  4) core/     : transversal. common/ (audio PlaybackRhythm, color DominantColor,
+                 dispatchers, folder SelectedFolders, format FolderLabel/
+                 TimeFormat, library MostPlayedSongs, result AppResult) y
+                 ui/theme + ui/components.
+
+5.2 Inyeccion de dependencias (Hilt)
+------------------------------------
+  di/AppModule, di/DatabaseModule (DAOs + Room), di/RepositoryModule (bindea
+  interfaces de dominio -> implementaciones), DispatcherModule (IO/Default/Main).
+
+5.3 Hilos y concurrencia
+------------------------
+  Dispatchers.Default : trabajo intensivo de CPU (UUIDs en HomeViewModel,
+                        color dominante, mapping Room->Dominio de
+                        RoomLibraryRepository.observe*(), derivados de Inicio
+                        folders/popularSongs).
+  Dispatchers.IO      : lectura de DB y sistema de archivos.
+  Dispatchers.Main    : UI y llamadas obligatorias de Media3.
+
+5.4 Flujo de Inicio (patron anti-jank, ADR 022)
+-----------------------------------------------
+  - songsFlow / selectedFoldersFlow: observeSongs()/observeSelectedFolders()
+    con distinctUntilChanged() + flowOn(Default) +
+    shareIn(WhileSubscribed(5 s), replay = 1)  (una sola suscripcion a Room).
+  - libraryDerivedFlow: combine(songs, folders) -> LibraryDerived(folders,
+    popularSongs). Se recalcula SOLO cuando cambia el catalogo.
+  - catalogFlow: canciones + carpetas + estado de escaneo + playlists.
+  - combine final (coreFlow + busqueda + favoritos): solo ENSAMBLA referencias
+    ya calculadas -> un tick de 500 ms es O(1).
+  - RoomLibraryRepository.observeSongs() aplica .flowOn(Dispatchers.Default).
+
+5.5 Seleccion de carpetas y escaneo
+-----------------------------------
+  - El usuario elige carpetas con SAF (ActivityResultContracts.OpenDocumentTree)
+    desde Canciones o desde el estado vacio de Inicio; Ajustes ofrece lo mismo.
+  - Cada carpeta se persiste como tree URI en MusicFolderPreferences
+    (SharedPreferences "auralis_library_prefs") via LibraryFolderRepository
+    (addFolder/removeFolder). UI: MusicFoldersSheet +
+    folderDisplayName() (FolderLabel).
+  - La app SIEMPRE arranca en Routes.HOME (sin onboarding).
+  - MediaStoreSource.getAudioFiles(folderTreeUris) indexa SOLO el audio dentro de
+    las carpetas elegidas: de cada tree URI (DocumentsContract.getTreeDocumentId)
+    deriva (volumen, ruta relativa) y comprueba pertenencia por VOLUME_NAME +
+    RELATIVE_PATH (API 29+; volumen SAF primary -> external_primary) o por
+    prefijo de DATA (API < 29). matchedSelectedFolder devuelve la carpeta MAS
+    ESPECIFICA que contiene el archivo (o descarta la fila); esa carpeta se
+    persiste en sourceFolderUri. AudioPathFilter sigue descartando audio no-musica.
+  - DefaultLibraryScanner.sync() lee las carpetas de MusicFolderPreferences y
+    escanea; sin carpetas, la biblioteca queda vacia (Inicio muestra estado
+    "Anadir carpeta").
+  - Al re-escanear, las canciones que ya no aparecen se marcan isAvailable = 0
+    (borrado logico), preservando playlists y favoritos.
+  - BLINDAJE: si el descubrimiento vuelve VACIO, el scanner NO marca nada como no
+    disponible (evita vaciar la biblioteca por MediaStore aun no listo, volumen
+    desmontado, SAF sin resolver o sin carpetas).
+
+5.6 Biblioteca: ocultar canciones y resumen de playlists
+--------------------------------------------------------
+  - Ocultar (reversible) - Room v5: SongEntity.isHidden (DEFAULT 0). LibraryDao
+    filtra isHidden = 0 en canciones, albumes, artistas, busqueda y canciones de
+    playlist; FavoritesDao tambien excluye ocultas. El scanner PRESERVA isHidden
+    en el upsert. Restauracion: observeHiddenSongs/getHiddenSongs/setHidden.
+  - PlaylistSummary - PlaylistDao.observePlaylistSummaries() devuelve
+    PlaylistSummaryRow (proyeccion con subconsultas COUNT, COALESCE(SUM(
+    durationMs),0) y primera coverUri por position, excluyendo isHidden = 0).
+
+5.7 Catalogo por carpetas (ADR 020)
+-----------------------------------
+  - El catalogo son EXCLUSIVAMENTE las canciones dentro de las carpetas
+    elegidas. Persistencia: Room v6 SongEntity.sourceFolderUri (indice
+    index_songs_sourceFolderUri). Helpers puros:
+    core/common/folder/SelectedFolders.kt (songsInSelectedFolder, libraryFolders)
+    y core/common/library/MostPlayedSongs.kt (mostPlayedSongs).
+  - UI: fila persistente de carpetas en Inicio -> "Todas"; sin carpeta
+    seleccionada no se listan canciones (pista breve); cola acotada a la carpeta
+    (onSongClick(song, scope) / playAll(scope)).
+
+5.8 Flujo de audio y efectos
+----------------------------
+  - Reproduccion estandar Media3 (ExoPlayer), sin efectos extra por defecto.
+  - Amplitud para el aura (SIN permisos): PlaybackService construye ExoPlayer
+    con AuraRenderersFactory (DefaultRenderersFactory propio) que inyecta
+    RhythmAudioProcessor en el DefaultAudioSink. El procesador es passthrough:
+    analiza PCM de 16 bits, separa graves (paso bajo ~150 Hz) y agudos (resta),
+    sigue envolvente de pico por banda y detecta ataques contra una media
+    adaptativa; publica en PlaybackRhythm (core/common/audio) un nivel con un
+    "pulso" de caida adaptada al tempo. PlaybackEnergy lo mezcla con su pulso
+    sintetico; sin senal fresca (500 ms) usa solo el sintetico. NO se usa
+    Visualizer ni RECORD_AUDIO.
+  - Ecualizador (AudioFX): PlaybackService detecta audioSessionId dinamico y al
+    cambiar de sesion libera el Equalizer previo y crea uno nuevo. Cada banda se
+    mapea de dB a milibel con bandLevelRange. IMPORTANTE: instanciar
+    android.media.audiofx.Equalizer SIEMPRE dentro de try-catch (dispositivos
+    sin soporte de hardware).
+
+5.9 Distribucion de paquetes
+----------------------------
+  core/ (transversal + diseno) | data/ (persistencia, MediaStore, Media3,
+  repos) | domain/ (modelos + interfaces, sin Android) | feature/<pantalla>/ |
+  di/ (modulos Hilt). Total: ~139 archivos .kt (main + test + androidTest).
+
+
+================================================================================
+6. MODELO DE DATOS (Room)
+================================================================================
+
+6.1 Base de datos
+-----------------
+  AppDatabase (com.auralis.player.data.database), con KSP. DAOs: LibraryDao,
+  PlaylistDao, FavoritesDao. Esquemas exportados en
+  app/schemas/com.auralis.player.data.database.AppDatabase/<version>.json.
+
+6.2 Entidades
+-------------
+  SongEntity        : incluye isHidden (v5) y sourceFolderUri (v6); playCount y
+                      lastPlayedAtEpochMs (para "mas reproducidas"); searchKey
+                      (v4); coverReference; isAvailable (borrado logico).
+  AlbumEntity, ArtistEntity, GenreEntity.
+  PlaylistEntity.
+  PlaylistSongEntity: relacion playlist<->cancion; SIN FK a songs (para que el
+                      borrado logico no arrastre filas).
+  (Favoritos via FavoritesDao/entidad).
+
+6.3 Migraciones (historial de versiones)
+----------------------------------------
+  v1 -> v2, v2 -> v3            : (etapas iniciales del esquema).
+  v3 -> v4 (MIGRATION_3_4)      : columna searchKey + backfill (busqueda sin
+                                  acentos/mayusculas).
+  v4 -> v5 (MIGRATION_4_5)      : ALTER TABLE songs ADD COLUMN isHidden INTEGER
+                                  NOT NULL DEFAULT 0 (ocultar canciones).
+  v5 -> v6 (MIGRATION_5_6)      : ALTER TABLE songs ADD COLUMN sourceFolderUri
+                                  TEXT DEFAULT NULL + indice
+                                  index_songs_sourceFolderUri. (Migracion
+                                  REMODELADA; nunca liberada tal cual.)
+  Version actual del esquema    : 6.
+
+6.4 Notas de consulta
+---------------------
+  - Busquedas insensibles a acentos/mayusculas con REPLACE + LOWER (ADR 002).
+  - Todas las consultas de biblioteca excluyen isHidden = 0.
+  - registerPlay(id, playedAtEpochMs): playCount + 1, actualiza
+    lastPlayedAtEpochMs.
+
+
+================================================================================
+7. SISTEMA DE DISENO
+================================================================================
+
+7.1 Paleta (core/ui/theme/Color.kt)
+-----------------------------------
+  Fondo                : #05070A (negro profundo)  [nota: el sitio web usa #0b0c10]
+  Superficie alzada    : #171B26 (gris azulado oscuro)
+  Acento primario      : #2E5BFF (azul electrico)
+  Acento secundario    : #8A2BE2 (violeta/purpura)
+  Gradiente primario   : fusion azul+violeta (boton Play, progreso)
+  Aura de respaldo     : AuraFallbackColor = #C62828 (rojo vivo)
+
+7.2 Tipografia (Type.kt)
+------------------------
+  Display: ligera y espaciada (titulos de seccion). Body: pesos medios. Timer:
+  monoespaciado sutil (duracion/progreso).
+
+7.3 Spacing y formas
+--------------------
+  Spacing: escala de 4dp (xs 4, s 8, m 16, l 24, xl 32; y xxl segun AppSpacing).
+  Shapes : Small 8dp (caratulas de lista), Medium 16dp (tarjetas, mini-player),
+           Full CircleShape (botones redondos, vinilo).
+
+7.4 Componentes core (core/ui/components)
+-----------------------------------------
+  AuralisArtwork          : carga de imagenes con fallback MusicNote y crossfade;
+                            ImageLoader global con cache <=25% de memoria.
+  SongListItem            : fila de cancion unificada (tap, long-press,
+                            swipe-to-queue umbral 150px, toggle favorito,
+                            trailingContent contextual).
+  SongActionsSheet        : ModalBottomSheet con acciones (Reproducir, Anadir a
+                            cola, Favoritos, Ocultar, y extras por contexto).
+  PlaylistDialogs         : CreatePlaylistDialog / EditPlaylistDialog /
+                            ConfirmDeleteDialog.
+  MiniPlayerBar           : barra inferior unica con scrubber de 3dp.
+  QueueFeedbackOverlay    : overlay efimero de swipe-to-queue.
+  AudioEqualizerVisualizer: 4 barras animadas en el top bar del Player.
+  VinylAura               : aura reactiva (ReactiveAura / StaticAura).
+  PlaybackEnergy          : rememberPlaybackEnergy(isPlaying) -> value + ambient.
+  StateViews              : estados vacios/carga compartidos.
+  VerticalFader           : fader vertical propio del ecualizador.
+
+7.5 Motion (Motion.kt)
+----------------------
+  durationAmbient, durationRotation (13 s), durationAuroraDrift (21 s),
+  durationAuroraSway (32 s), entre otras duraciones/easings estandar.
+
+7.6 Marca
+---------
+  Logo in-app: drawable/logo_auralis.png (512x512), circular en el header de
+  Inicio. Launcher: icono adaptativo con foreground PNG en todas las densidades
+  sobre ic_launcher_background = #000000 (logo ~61% de la zona segura). El logo
+  corporativo del Drawer (estalingradocorp_logo.jpg) es independiente.
+
+
+================================================================================
+8. DECISIONES TECNICAS (ADR 001-022)
+================================================================================
+Resumen. El detalle completo (contexto, alternativas descartadas, razon) esta en
+docs/DECISIONS.md.
+
+  ADR 001 (2026-09-03, Aceptado): SharedPreferences para el ecualizador
+          (5 ganancias + preset). Migracion a DataStore prevista.
+  ADR 002 (2026-08-29, Aceptado): normalizacion de busqueda con REPLACE+LOWER en
+          SQLite + searchKey premormalizada.
+  ADR 003 (2026-09-03, Aceptado): audioSessionId dinamica via
+          onAudioSessionIdChanged; reaplica el efecto a la sesion real.
+  ADR 004 (2026-09-03, Aceptado): VerticalFader propio en vez de Slider rotado.
+  ADR 005 (2026-09-05/consolidado): Material Icons Rounded como estandar visual.
+  ADR 006 (2026-09-05/consolidado): LinearProgressIndicator 3dp en mini-player.
+          Revisado: el mini-player recupera el seek como scrubber (ADR 018).
+  ADR 007 (2026-09-05/consolidado): item activo del Drawer con pill.
+  ADR 008 (2026-09-05/consolidado): AuralisArtwork fallback MusicNote.
+  ADR 009 (2026-10-12, Aceptado): POST_NOTIFICATIONS runtime (Android 13+).
+  ADR 010 (2026-10-12, Aceptado): nuevo logotipo e icono de app (PNG, fondo
+          negro, zona segura). Se eliminaron .webp legacy.
+  ADR 010b (2026-10-12, Aceptado): version de la app visible en el Drawer.
+  ADR 011 (2026-10-12, Aceptado): tests instrumentados + CI con matriz de
+          emuladores (API 26/29/33/36).
+  ADR 012 (2026-10-12, Aceptado v0.2.0): escaneo automatico por defecto +
+          carpetas que se SUMAN (SAF). REVERTIDA por ADR 020.
+  ADR 013 (2026-10-13/consolidado): color dominante propio (sin Palette);
+          DominantColor.kt puro + MediaArtworkColorRepository (cache LruCache).
+  ADR 014 (2026-10-13/consolidado): ocultar canciones en vez de borrar (Room v5).
+  ADR 015 (2026-10-13/consolidado): estadisticas de playlist en SQL.
+  ADR 016 (2026-10-13/consolidado): mini-player unico y minimalista en toda la
+          app.
+  ADR 017 (2026-10-13/consolidado): aura = luz ambiental fluida (sin blur).
+  ADR 018 (2026-10-13/consolidado): scrub interactivo en el mini-player.
+  ADR 019 (2026-10-13, rev. 2026-10-14/consolidado): aura reactiva al ritmo SIN
+          permisos (graves + agudos; pulso con caida adaptada al tempo).
+  ADR 020 (2026-10-14/15/consolidado): el catalogo son UNICAMENTE las carpetas
+          seleccionadas (REVIERTE ADR 012; Room v6 sourceFolderUri).
+  ADR 021 (2026-10-14/15/consolidado): Acceso rapido por canciones mas
+          reproducidas (playCount).
+  ADR 022 (2026-10-15/consolidado): Inicio desacopla el tick de reproduccion
+          (500 ms) de los derivados de biblioteca (folders/popularSongs).
+
+
+================================================================================
+9. BUGS: CONOCIDOS, PARCIALES Y RESUELTOS
+================================================================================
+
+9.1 Bugs conocidos / limitaciones abiertas
+------------------------------------------
+  - Metadatos tecnicos (bitrate, sample rate, formato) no se muestran en el
+    dialogo de detalles (parcial).
+  - DataStore no implementado (se usan SharedPreferences).
+  - Solo espanol (sin multi-idioma).
+  - Sin captura local de crashes (se diagnostica con logcat si ocurre).
+  - Restriccion Android (tema cerrado): la musica en Android/data/ o
+    Android/obb/ NO es accesible sin root; queda fuera del catalogo.
+  - No existe build de release FIRMADO todavia (el release se genera sin firmar).
+
+9.2 Resueltos (bugs corregidos)
+-------------------------------
+  - Hilo principal en HomeViewModel.onSongClick: UUIDs de QueueItem movidos a
+    Dispatchers.Default.
+  - Cover vacio en AlbumDetail: se prioriza el primer coverReference no vacio.
+  - Escaneo no detectaba musica descargada [causa raiz]: se elimino
+    MediaStore.Audio.Media.DATA de la proyeccion (bloqueada en Android 11+ con
+    targetSdk >= 30) y lecturas defensivas (safeGetString).
+  - Audio no-musica mezclado con las canciones: nuevo AudioPathFilter.
+  - Estado vacio en Inicio tras un escaneo sin resultados: se muestra la guia.
+  - Compilacion de PlaybackService: DEFAULT_SESSION_COMMANDS, SessionError,
+    @OptIn.
+  - mergeReleaseResources: estalingradocorp_logo.png -> .jpg (era JPEG mal
+    nombrado).
+  - Sin controles de reproduccion en Android 13+: POST_NOTIFICATIONS runtime.
+  - Biblioteca que se vaciaba por un escaneo sin resultados:
+    DefaultLibraryScanner ya no marca isAvailable = 0 con descubrimiento vacio.
+  - Inicio desacoplado del vacio de biblioteca (solo "Sin musica" si no hay
+    canciones, playlists ni carpetas).
+  - Carpetas elegidas se respetan: AudioPathFilter solo actua con seleccion
+    amplia; subcarpetas concretas no se excluyen.
+  - Copia de seguridad desactivada (allowBackup="false" + reglas de exclusion de
+    database/ y sharedpref/) para que un restore no revierta playlists/favoritos.
+  - Trabajo pesado en el hilo principal durante la reproduccion: desacople del
+    tick (500 ms) de los derivados de biblioteca (ADR 022). Prueba:
+    "los ticks de reproduccion no recalculan los derivados de biblioteca".
+  - AddToPlaylistViewModel: acceso null-safe al argumento de navegacion.
+  - Lint android:forceDarkAllowed con tools:targetApi="q".
+
+
+================================================================================
+10. TESTS Y CI/CD
+================================================================================
+
+10.1 Tests unitarios (app/src/test/) - JVM
+------------------------------------------
+  27 archivos. Ejemplos:
+    core/common/color/DominantColorTest
+    core/common/folder/SelectedFoldersTest
+    core/common/format/FolderLabelTest, TimeFormatTest
+    core/common/library/MostPlayedSongsTest
+    core/common/result/AppResultTest
+    core/ui/theme/ThemeModeTest
+    data/database/dao/LibraryDaoTest, PlaylistDaoTest
+    data/database/mapper/MappersTest
+    data/mediastore/AudioPathFilterTest
+    data/repository/InMemoryPlaybackRepositoryTest, MusicFolderPreferencesTest,
+      QueueInsertIndexCalculatorTest, RoomFavoritesRepositoryTest,
+      RoomPlaylistRepositoryTest
+    data/scanner/LibraryScannerTest, LibraryScanSchedulerTest,
+      LibraryScanWorkerTest
+    domain/DomainPurityTest, domain/model/DomainModelsTest
+    feature/favorites/FavoritesViewModelTest, feature/hidden/
+      HiddenSongsViewModelTest, feature/home/HomeViewModelTest,
+      feature/player/PlayerViewModelTest, feature/playlists/
+      PlaylistsViewModelTest, feature/queue/QueueViewModelTest
+  Conteo actual verificado: 158 tests, 0 fallos (consolidacion 2026-10-15).
+  Test destacado: "los ticks de reproduccion no recalculan los derivados de
+  biblioteca" (verifica identidad assertSame de folders/popularSongs).
+
+10.2 Tests instrumentados (app/src/androidTest/)
+-----------------------------------------------
+  AppLaunchSmokeTest        : arranque + Drawer/version (GrantPermissionRule +
+                              RuleChain).
+  LibraryDaoInstrumentedTest: DAO contra SQLite real del dispositivo.
+
+10.3 CI/CD (GitHub Actions)
+---------------------------
+  .github/workflows/ (workflow "CI - Build & Test": assembleDebug +
+  testDebugUnitTest + lintDebug).
+  .github/workflows/android-ci.yml: job de unit+lint y job de tests
+  instrumentados en matriz de emuladores (API 26/29/33/36).
+  PENDIENTE: verificar en remoto la corrida del workflow nuevo de matriz.
+
+10.4 Comandos
+-------------
+  Build debug        : ./gradlew assembleDebug
+  Tests unitarios    : ./gradlew testDebugUnitTest
+  Lint               : ./gradlew lintDebug
+  Release (AAB)      : ./gradlew bundleRelease
+  Release (APK)      : ./gradlew assembleRelease
+  Instrumentados     : ./gradlew connectedDebugAndroidTest
+                       (o powershell -File tools/run-instrumented-tests.ps1)
+  En Windows: usar .\gradlew.bat
+
+10.5 Estado de calidad (consolidacion 2026-10-15)
+-------------------------------------------------
+  testDebugUnitTest + lintDebug + assembleDebug -> BUILD SUCCESSFUL.
+  lintDebug es error-fatal (no puede quedar con warnings/errores que rompan).
+  No se ha medido cobertura en este snapshot.
+
+
+================================================================================
+11. SITIO WEB Y PUBLICACION
+================================================================================
+
+11.1 GitHub Pages
+-----------------
+  Fuente: rama main, carpeta /docs (Project Pages).
+  URL: https://nicolabarranco27-a11y.github.io/AURALIS/
+  docs/index.html: pagina de descarga (Tailwind via CDN, FontAwesome, fuente
+  Inter). Archivos: index.html, capturas (inicio.jpg, reproduccion-1.jpg,
+  reproduccion-2.jpg, ecualizador.jpg), favicon.png, logo.png, Auralis.apk y
+  documentos .md.
+  Verificado en vivo: home -> 200; docs/Auralis.apk -> 200.
+
+11.2 APK publicado
+------------------
+  docs/Auralis.apk = Auralis-debug.apk (raiz del repo) =
+  25.604.514 bytes (~24,4 MB).
+  SHA-256: 07720B4D6C330F606F981852FB031B6DAEE60019ECFBE7EEFC1645F3EF6948D5
+  (index.html muestra el tamano "24,4 MB" y ese hash.)
+
+11.3 Verificacion de Google Search Console
+------------------------------------------
+  Archivo de verificacion: docs/google2e968a38df969ade.html
+    contenido: "google-site-verification: google2e968a38df969ade.html"
+    (nombre y contenido COINCIDEN; 53 bytes).
+  URL publicada:
+    https://nicolabarranco27-a11y.github.io/AURALIS/google2e968a38df969ade.html
+  Estado: propiedad verificada; se solicito la indexacion de la home (queda en
+  cola prioritaria de rastreo).
+  NOTAS:
+    - No hay sitemap.xml (es opcional; con 1 sola pagina aporta poco).
+    - No hay robots.txt y no aplica: Google solo lee robots.txt en la raiz del
+      host (https://nicolabarranco27-a11y.github.io/robots.txt), no en /AURALIS/.
+    - En un project page, un robots.txt dentro de docs/ NO tendria efecto.
+    - Mejora opcional pendiente: og:image/twitter:image usan ruta relativa
+      (inicio.jpg); convendria URL absoluta.
+  Aparte del sitio, existe google186b1953cb6a2b78.html (borrado por el usuario)
+  que tenia nombre/contenido desalineados y NO se publico.
+
+11.4 Workflow de publicacion del sitio
+--------------------------------------
+  El sitio se actualiza commiteando a docs/ en main (GitHub Pages redespliega).
+  Historial reciente: capturas del hero, esquinas redondeadas, anillo interior,
+  actualizacion del APK v0.2.0 y del archivo de verificacion de Google.
+
+
+================================================================================
+12. FLUJO DE TRABAJO
+================================================================================
+
+12.1 Comandos habituales (Windows / PowerShell)
+-----------------------------------------------
+  Build debug    : .\gradlew.bat assembleDebug
+  Tests          : .\gradlew.bat testDebugUnitTest
+  Lint           : .\gradlew.bat lintDebug
+  Release        : .\gradlew.bat assembleRelease  (o bundleRelease)
+  Instalar       : .\gradlew.bat installDebug (con dispositivo conectado)
+  ADB (ruta)     : %LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe
+  Nota: el dispositivo fisico usado en desarrollo aparece como "unauthorized"
+  hasta aceptar "Permitir depuracion USB".
+
+12.2 Convenciones de git
+------------------------
+  Commits: Conventional Commits (feat, fix, refactor, style, docs, test, chore).
+  Ramas: feature/<nombre>. La rama principal es main; se evita force-push.
+  Antes de commitear: inspeccionar git status, git diff y git log --oneline -10.
+  No commitear secretos ni archivos de firma (local.properties esta ignorado).
+  Cuando origin tiene commits nuevos: fetch + merge (no rebase/force) y resolver
+  conflictos preservando ambos lados.
+
+12.3 Proceso de release (docs/RELEASE_PLAN.md)
+----------------------------------------------
+  1) Working tree limpio. 2) Incrementar versionCode/versionName en
+  app/build.gradle.kts. 3) Mover [Unreleased] a la version fechada en
+  CHANGELOG.md. 4) ./gradlew bundleRelease. 5) Push a main + tag vX.Y.Z.
+  6) GitHub Actions genera el release. 7) Actualizar PROJECT_STATUS.md y
+  RELEASE_PLAN.md.
+
+12.4 Documentacion continua (AGENTS.md)
+---------------------------------------
+  Regla: la documentacion debe reflejar SIEMPRE el estado real del codigo.
+  Actualizar tras cada funcionalidad/fix/cambio relevante:
+    README.md            <- stack, variants, permisos, novedades
+    CHANGELOG.md         <- toda funcionalidad/fix visible (Keep a Changelog)
+    docs/PROJECT_STATUS.md <- fotografia del estado real (fuente principal)
+    docs/FEATURES.md     <- altas/cambios de funcionalidades
+    docs/ARCHITECTURE.md <- capas, DI, threading, flujo de audio
+    docs/DESIGN_SYSTEM.md<- tokens/paleta/componentes core
+    docs/DECISIONS.md    <- ADR relevantes
+    docs/RELEASE_PLAN.md <- estado de hitos
+    docs/PLAY_STORE_CHECKLIST.md <- requisitos de Store
+    docs/PRODUCT.md      <- vision/pilares/publico/roadmap
+    BITACORA.txt         <- este documento (sintesis y contexto narrativo)
+  Reglas: no inventar contenido; marcar lo no consolidado; no duplicar;
+  PROJECT_STATUS.md gana ante discrepancias.
+
+12.5 Guardrails tecnicos (AGENTS.md)
+------------------------------------
+  - No modificar la configuracion del motor de audio salvo por AudioFX o
+    estabilidad.
+  - Busquedas en SQLite con LOWER + REPLACE (insensibles a acentos/mayusculas).
+  - Operaciones pesadas (mapeos, UUIDs, DB) en Dispatchers.Default/IO; volver al
+    hilo principal para Media3/UI.
+  - Instanciar AudioFX siempre en try-catch.
+  - Cada nueva logica en ViewModel/Repository con sus tests en app/src/test/.
+  - El build debe pasar siempre ./gradlew lintDebug.
+
+12.6 Preferencias del usuario registradas (historico)
+-----------------------------------------------------
+  - "Eliminar cancion" = OCULTAR (reversible), no borrar.
+  - NO tocar los controles del reproductor; Aura SIN permisos.
+  - Mini-player: mostrar el tiempo solo al arrastrar (~500 ms de refresco).
+  - Carpetas: lista plana recursiva; solo carpetas seleccionadas; sin carpetas
+    -> estado vacio; anidadas -> agrupar en la mas especifica; migracion v6
+    remodelada (nunca liberada).
+  - Navegacion de carpetas: un toque para cambiar; fila persistente no-sticky;
+    la carpeta activa se mantiene al cambiar de chip; re-tocar la colapsa;
+    auto-scroll a la activa.
+  - "Todo se documenta".
+  - Version: NO subir versionName/versionCode sin pedido explicito.
+
+
+================================================================================
+13. REGISTRO DE CAMBIOS (changelog condensado)
+================================================================================
+
+[0.1.0] - 2025-01-XX (59403f7)
+  Base: reproduccion Media3 + MediaSessionService, escaneo MediaStore +
+  WorkManager, vistas Canciones/Albumes/Artistas, Home con mini-player, Player,
+  Drawer, tema M3, Clean Architecture, Hilt, Room+Flow, Coroutines, KSP,
+  ProGuard/R8, tests base.
+
+[0.2.0] - 2026-10-12 (8304e58 + tag v0.2.0)
+  Added: seleccion de carpetas con SAF (FolderSelection, LibraryFolderRepository,
+  MusicFolderPreferences, folderDisplayName); nuevo icono/logo; version en
+  Drawer; tests instrumentados; CI matriz de emuladores;
+  tools/run-instrumented-tests.ps1; busqueda con autocomplete; toggle de
+  favoritos en filas; vista de Favoritos; ecualizador AudioFX 5 bandas +
+  presets + persistencia; dialogo Detalles de la Pista; SettingsScreen +
+  persistencia de tema; Drawer con item activo; carrusel Acceso Rapido + chips;
+  cola dinamica (swipe-to-queue).
+  Changed: escaneo automatico por defecto + carpetas que se suman; Inicio sin
+  onboarding; POST_NOTIFICATIONS runtime; AuralisArtwork fallback MusicNote;
+  mini-player con LinearProgressIndicator 3dp; iconografia Rounded; PlayerScreen
+  vinilo + glow + visualizador; renombrado del logo corporativo .png -> .jpg.
+  Fixed: audio no-musica descartado (AudioPathFilter); estado vacio de Inicio;
+  filtrado por volumen en el escaneo; compilacion de PlaybackService; lint
+  forceDarkAllowed; AddToPlaylistViewModel null-safe; causa raiz del escaneo de
+  descargas (se quito DATA de la proyeccion); escaneo de arranque.
+  Technical: minSdk 26 / targetSdk 36 / compileSdk 37; WAKE_LOCK; Room v4
+  (searchKey); dependencias test instrumentado; cache de imagen <=25%.
+  Removed: coil-network; iconos .webp legacy.
+
+[Unreleased] (consolidado en origin/main, 2026-10-14/15)
+  Added:
+    - Efectos visuales del reproductor: aura reactiva al ritmo real (sin
+      permisos), mini-player con scrub, barra inferior unificada.
+    - Extraccion de color dominante sin dependencias (DominantColor +
+      MediaArtworkColorRepository).
+    - Ocultar canciones de la biblioteca (reversible; Room v5) + HiddenSongsScreen.
+    - Fila de cancion unificada (SongListItem) + SongActionsSheet.
+    - Chip "Playlists" en Inicio (crear + eliminar por long-press).
+    - Estadisticas de playlist (PlaylistSummary).
+    - Rediseno del apartado de Playlists; edicion con descripcion;
+      PlaylistDialogs.
+    - Catalogo por carpetas seleccionadas (Room v6 sourceFolderUri); navegacion
+      persistente de carpetas; cola acotada.
+    - Acceso rapido por mas reproducidas (playCount).
+  Changed:
+    - PlayerScreen: controles Icons.Rounded; seek con thumb solido; proporcion
+      del vinilo/aura al 72%/98%; aura afinada y mas fluida; encabezado de
+      seccion segun filtro; filtro conservado (rememberSaveable); mini-player con
+      progreso interactivo; refresco de posicion a 500 ms.
+  Technical:
+    - Ritmo sin permisos (RhythmAudioProcessor + PlaybackRhythm +
+      AuraRenderersFactory).
+    - Room v5 (isHidden) y Room v6 (sourceFolderUri + indice).
+    - registerPlay (playCount/lastPlayedAt).
+    - PlaylistDao.observePlaylistSummaries + updateDescription.
+    - Rendimiento de Inicio (tick 500 ms no recalcula derivados; trabajo en
+      Dispatchers.Default).
+  Fixed:
+    - La biblioteca no se vacia por un escaneo sin resultados.
+    - Playlists/carpetas no desaparecen con la biblioteca vacia.
+    - Subcarpetas elegidas se respetan (AudioPathFilter).
+    - Copia de seguridad desactivada.
+    - Sin trabajo pesado en el hilo principal durante la reproduccion.
+
+Ver el detalle completo en CHANGELOG.md.
+
+
+================================================================================
+14. PENDIENTES / ROADMAP Y ANEXOS
+================================================================================
+
+14.1 Pendientes de implementacion
+---------------------------------
+  [pendiente] Migrar preferencias (tema, ecualizador, ajustes, carpetas) a
+              Jetpack DataStore (Milestone 1).
+  [pendiente] Metadatos tecnicos (formato, bitrate, sample rate) en el dialogo
+              de detalles (Milestone 1).
+  [pendiente] Multi-idioma (Espanol e Ingles) (Milestone 2).
+  [pendiente] Edicion de metadatos (ID3 tags) (Milestone 2).
+  [pendiente] Optimizar el scanner para bibliotecas > 5.000 canciones
+              (Milestone 2).
+  [pendiente] Accesibilidad completa (TalkBack + contrastes) (Milestone 2).
+  [pendiente] Android Auto (Milestone 3).
+  [pendiente] Media Buttons de auriculares Bluetooth (Milestone 3).
+  [pendiente] Widgets de escritorio (pequeno y mediano) (Milestone 3).
+  [pendiente] Auditoria de seguridad + Data Safety; capturas profesionales;
+              politica de privacidad; lanzamiento en Play Store (Milestone 4).
+
+14.2 Roadmap (docs/PRODUCT.md + RELEASE_PLAN.md)
+------------------------------------------------
+  v0.2.0   [x] release consolidada.
+  efectos visuales + gestion biblioteca [x] consolidados.
+  catalogo por carpetas + rendimiento [x] consolidado (2026-10-15).
+  v0.5.0   [ ] Favoritos (hecho) + Sleep Timer (hecho) + DataStore + metadatos.
+  v0.6.0   [ ] Android Auto.
+  v0.7.0   [ ] Visualizadores de pantalla completa.
+  v0.8.0   [ ] Localizacion y accesibilidad.
+  v0.9.0   [ ] Widgets y ecosistema.
+  v1.0.0   [ ] Release estable en Google Play Store.
+
+14.3 Bloqueos conocidos (Play Store)
+------------------------------------
+  - No hay build de release FIRMADO todavia.
+  - No hay capturas de pantalla profesionales (el sitio tiene capturas propias).
+  - No hay Politica de Privacidad publicada.
+  - Falta verificar en remoto el workflow de matriz de emuladores.
+
+14.4 Anexos - rutas clave del repositorio
+-----------------------------------------
+  app/src/main/java/com/auralis/player/feature/home/HomeViewModel.kt   (rendimiento/ADR 022)
+  app/src/main/java/com/auralis/player/data/repository/RoomLibraryRepository.kt (flowOn Default)
+  app/src/main/java/com/auralis/player/feature/playback/MusicServiceConnection.kt (tick 500 ms)
+  app/src/main/java/com/auralis/player/feature/playback/PlaybackService.kt       (Media3/AudioFX)
+  app/src/main/java/com/auralis/player/feature/playback/RhythmAudioProcessor.kt  (ritmo sin permisos)
+  app/src/main/java/com/auralis/player/data/scanner/DefaultLibraryScanner.kt     (blindaje anti-vaciado)
+  app/src/main/java/com/auralis/player/data/mediastore/MediaStoreSource.kt       (catalogo por carpetas)
+  app/src/main/java/com/auralis/player/data/mediastore/AudioPathFilter.kt
+  app/src/main/java/com/auralis/player/data/database/AppDatabase.kt              (v6 + migraciones)
+  app/src/main/java/com/auralis/player/core/common/folder/SelectedFolders.kt
+  app/src/main/java/com/auralis/player/core/common/library/MostPlayedSongs.kt
+  app/src/main/java/com/auralis/player/core/ui/components/                       (componentes core)
+  app/src/main/AndroidManifest.xml + res/xml/backup_rules.xml + data_extraction_rules.xml
+  app/build.gradle.kts (versionName 0.2.0 / versionCode 2) ; gradle/libs.versions.toml
+  .github/workflows/ ; tools/run-instrumented-tests.ps1
+  docs/ ; README.md ; CHANGELOG.md ; AGENTS.md ; BITACORA.txt (este archivo)
+
+14.5 Anexos - estado del dispositivo de desarrollo
+--------------------------------------------------
+  ADB: %LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe
+  Dispositivo visto: R5CX41Y38YJ en estado "unauthorized" (aceptar "Permitir
+  depuracion USB" para instalar/depurar).
+
+14.6 Anexos - notas de codificacion (para quienes editen este repo desde
+     herramientas de Windows)
+--------------------------------------------------
+  - Algunas ediciones de texto pueden fallar por mojibake de acentos; releer el
+    archivo antes de editar.
+  - Set-Content/Get-Content -Raw pueden convertir LF -> CRLF (git normaliza al
+    almacenar). Preferir herramientas nativas del editor.
+  - Por robustez, BITACORA.txt evita tildes; los .md del repo si las usan.
+
+================================================================================
+FIN DE LA BITACORA - Auralis
+================================================================================
