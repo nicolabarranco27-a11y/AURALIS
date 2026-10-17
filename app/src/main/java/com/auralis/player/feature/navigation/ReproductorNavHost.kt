@@ -319,7 +319,7 @@ private fun CorporateSection(
     spacing: AppSpacing
 ) {
     val uriHandler = LocalUriHandler.current
-    val corporateUrl = "https://estalingradocorp.github.io/EstalingradoCorp/"
+    val corporateUrl = "https://estalingradocorp.github.io/EstalingradoCorp/index.html"
 
     Column(
         modifier = Modifier

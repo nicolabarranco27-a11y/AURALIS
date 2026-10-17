@@ -246,7 +246,7 @@ Auralis se distribuye bajo la **PolyForm Noncommercial License 1.0.0**.
 - **Debés conservar** el aviso: `Required Notice: Copyright (c) 2025-2026 EstalingradoCorp`.
 
 ```
-Required Notice: Copyright (c) 2025-2026 EstalingradoCorp (https://estalingradocorp.github.io/EstalingradoCorp/)
+Required Notice: Copyright (c) 2025-2026 EstalingradoCorp (https://estalingradocorp.github.io/EstalingradoCorp/index.html)
 ```
 
 Texto completo de la licencia: [`LICENSE`](LICENSE) ·
@@ -259,7 +259,7 @@ Texto completo de la licencia: [`LICENSE`](LICENSE) ·
 ## 🙋 Soporte y Contacto
 
 - **Issues**: GitHub Issues del repositorio
-- **Web**: EstalingradoCorp
+- **Web**: [EstalingradoCorp](https://estalingradocorp.github.io/EstalingradoCorp/index.html)
 - **Email**: soporte@estalingradocorp.com
 
 ---

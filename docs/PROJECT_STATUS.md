@@ -210,3 +210,4 @@ Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 | 2026-10-15 | `ea7035a` / `929ef6e` | Verificación Google Search Console (archivo correcto publicado, solicitud de indexación) |
 | 2026-10-15 | `b119977` | Creación de `BITACORA.txt` (documentación viva, no publicada en sitio) |
 | 2026-10-16 | (presente) | **Cambio de licencia**: de Apache 2.0 a **PolyForm Noncommercial 1.0.0** (source-available, uso no comercial); derechos reservados. Se agregan `CONTRIBUTING.md` (contribuciones solo con acuerdo previo/CLA), `THIRD_PARTY_NOTICES.md`, cabeceras de copyright en `.kt` y actualización del sitio (`docs/index.html`) con aviso de licencia/derechos. |
+| 2026-10-17 | (presente) | **Enlace de la empresa unificado** a `https://estalingradocorp.github.io/EstalingradoCorp/index.html` (`README.md`, `LICENSE`, Drawer de la app); la cuenta `Estalingradocorp` agregada como **colaborador** del repositorio (permiso push). |

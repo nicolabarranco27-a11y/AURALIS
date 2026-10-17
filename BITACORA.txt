@@ -379,6 +379,24 @@ SESION 12 - Cambio de licencia a PolyForm Noncommercial (2026-10-16)
   Resultado : codigo bajo PolyForm Noncommercial 1.0.0; derechos reservados.
 
 --------------------------------------------------------------------------------
+SESION 13 - Enlace de la empresa y colaborador (2026-10-17)
+--------------------------------------------------------------------------------
+  Objetivo : Unificar el enlace de la empresa y dar acceso al perfil corporativo.
+  Hechos :
+    - El enlace de la empresa apunta a
+      https://estalingradocorp.github.io/EstalingradoCorp/index.html en README.md
+      (campo Web + Required Notice), LICENSE (Required Notice) y en la app
+      (ReproductorNavHost.kt, Drawer -> CorporateSection). El sitio (docs/index.html)
+      ya usaba esa URL con index.html.
+    - Se agrego la cuenta GitHub "Estalingradocorp" (perfil corporativo,
+      https://github.com/Estalingradocorp/EstalingradoCorp) como colaborador del
+      repositorio AURALIS con permiso de push (via API de GitHub).
+  Nota : el APK publicado (docs/Auralis.apk) es anterior a este cambio; su enlace
+  corporativo (sin index.html) sigue funcionando porque GitHub Pages sirve el
+  index por defecto. Se reconstruira el APK en la proxima publicacion.
+  Resultado : enlaces unificados y perfil de la empresa como colaborador.
+
+--------------------------------------------------------------------------------
 RESUMEN DE COMMITS (git log, orden cronologico)
 --------------------------------------------------------------------------------
   59403f7 | 2026-08-28 | feat: initial commit - Auralis v0.1.0
