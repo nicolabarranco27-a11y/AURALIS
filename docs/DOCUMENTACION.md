@@ -98,7 +98,7 @@ Tres tarjetas (grid 1/3 columnas):
 - Marca + descripción + enlace a EstalingradoCorp.
 - **Enlaces rápidos** (mismos anclajes que el header).
 - **Legal & Soporte**: enlaces que abren los modales legales y `mailto:contacto@estalingradocorp.com`.
-- Línea inferior: copyright, etiqueta "Auralis Beta · Android" y acceso de contacto.
+- Línea inferior: copyright con aviso de licencia (**PolyForm Noncommercial 1.0.0**, uso no comercial), etiqueta "Auralis Beta · Android" y acceso de contacto.
 
 ---
 
