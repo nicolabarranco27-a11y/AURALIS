@@ -122,7 +122,9 @@ memoria externa ni de transcripciones de chat.
   Paquete          : com.auralis.player
   Empresa          : EstalingradoCorp
   Email de soporte : soporte@estalingradocorp.com
-  Licencia         : Apache License 2.0 (Copyright 2025 EstalingradoCorp)
+  Licencia         : PolyForm Noncommercial 1.0.0 (Copyright 2025-2026
+                     EstalingradoCorp). Uso NO comercial; prohibido el uso
+                     comercial sin licencia aparte.
 
 2.2 Stack tecnologico (segun README.md)
 ----------------------------------------
@@ -345,6 +347,36 @@ SESION 10 - Creacion de esta bitacora (2026-10-15)
   sitio); (2) historial reconstruido desde git + docs (no literal); (3) commit +
   push a origin/main.
   Resultado : este archivo.
+
+--------------------------------------------------------------------------------
+SESION 11 - Verificacion de Google e indexacion (2026-10-15 a 2026-10-16)
+--------------------------------------------------------------------------------
+  Objetivo : Verificar la propiedad del sitio en Google Search Console.
+  Hechos :
+    - Archivo de verificacion correcto: google2e968a38df969ade.html (53 bytes;
+      nombre y contenido coinciden). Copiado a docs/ y publicado.
+    - Verificado en vivo (HTTP 200, contenido exacto).
+    - Search Console: "Se ha solicitado la indexacion" (cola prioritaria).
+    - Analisis SEO: sin sitemap.xml (opcional); robots.txt no aplica en project
+      page; og:image usa ruta relativa.
+  Commit : ea7035a (archivo de verificacion) + merge 929ef6e.
+
+--------------------------------------------------------------------------------
+SESION 12 - Cambio de licencia a PolyForm Noncommercial (2026-10-16)
+--------------------------------------------------------------------------------
+  Objetivo : Reservar los derechos del codigo (dejar de ser open source).
+  Antecedente : El proyecto estaba bajo Apache 2.0, pero el sitio y la app ya
+  mostraban "Todos los derechos reservados" (contradiccion).
+  Decisiones del usuario : (1) licencia PolyForm Noncommercial 1.0.0 (uso no
+  comercial); (2) mantener el repositorio PUBLICO; (3) incluir los tres extras
+  (CONTRIBUTING con CLA, THIRD_PARTY_NOTICES.md, cabeceras de copyright en el
+  codigo); (4) reservar tambien los derechos en la pagina web.
+  Alcance : aplica a versiones futuras; las copias ya distribuidas bajo Apache
+  2.0 conservan sus derechos (Apache 2.0 es irrevocable para quien ya la recibio).
+  Archivos : LICENSE, README.md, CONTRIBUTING.md, THIRD_PARTY_NOTICES.md (nuevo),
+  CHANGELOG.md, docs/PROJECT_STATUS.md, docs/index.html, cabeceras en archivos
+  .kt, y esta bitacora.
+  Resultado : codigo bajo PolyForm Noncommercial 1.0.0; derechos reservados.
 
 --------------------------------------------------------------------------------
 RESUMEN DE COMMITS (git log, orden cronologico)

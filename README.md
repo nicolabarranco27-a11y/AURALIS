@@ -239,21 +239,22 @@ Ver `docs/DESIGN_SYSTEM.md` para el detalle.
 
 ## 📄 Licencia
 
+Auralis se distribuye bajo la **PolyForm Noncommercial License 1.0.0**.
+
+- **Uso permitido**: cualquier fin **no comercial** (uso personal, estudio, hobby, investigación, instituciones educativas, organizaciones sin fines de lucro, gobierno).
+- **Uso comercial**: **prohibido** sin una licencia comercial aparte del titular.
+- **Debés conservar** el aviso: `Required Notice: Copyright (c) 2025-2026 EstalingradoCorp`.
+
 ```
-Copyright 2025 EstalingradoCorp
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+Required Notice: Copyright (c) 2025-2026 EstalingradoCorp (https://estalingradocorp.github.io/EstalingradoCorp/)
 ```
+
+Texto completo de la licencia: [`LICENSE`](LICENSE) ·
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+> El titular (EstalingradoCorp) conserva la titularidad y **la totalidad de los derechos** sobre el software. Para uso comercial, contactar a soporte@estalingradocorp.com.
+
+> **Nota histórica**: hasta la versión `0.2.0` (`b119977`) el código se publicó bajo Apache License 2.0. Las copias ya distribuidas bajo esa licencia conservan sus derechos; desde esta versión aplica PolyForm Noncommercial.
 
 ## 🙋 Soporte y Contacto
 

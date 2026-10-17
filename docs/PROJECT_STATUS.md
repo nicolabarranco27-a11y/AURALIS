@@ -207,4 +207,6 @@ Ver `docs/RELEASE_PLAN.md` para los hitos detallados hacia v1.0.0.
 | 2026-10-12 | (consolidación) | Features core + nuevo logo/ícono + versión en drawer + POST_NOTIFICATIONS + tests instrumentados + CI matriz |
 | 2026-10-12 | `8304e58` | v0.2.0: escaneo automático por defecto + carpetas adicionales (SAF); tag `v0.2.0` (subido a `origin`) |
 | 2026-10-14 | (consolidación) | Pulido visual del reproductor (aura reactiva al ritmo, seek, mini-player scrub) + gestión de biblioteca/playlists (ocultar canciones, chip Playlists) — **subida a `origin/main`** |
-| 2026-10-15 | `2106d9c` | Catálogo por carpetas seleccionadas (`sourceFolderUri`, Room v6, vista de carpetas + cola acotada), Acceso rápido por más reproducidas, blindajes anti-vaciado de la biblioteca y optimización de Inicio para gama media-baja — **subida a `origin/main`** |
+| 2026-10-15 | `ea7035a` / `929ef6e` | Verificación Google Search Console (archivo correcto publicado, solicitud de indexación) |
+| 2026-10-15 | `b119977` | Creación de `BITACORA.txt` (documentación viva, no publicada en sitio) |
+| 2026-10-16 | (presente) | **Cambio de licencia**: de Apache 2.0 a **PolyForm Noncommercial 1.0.0** (source-available, uso no comercial); derechos reservados. Se agregan `CONTRIBUTING.md` (contribuciones solo con acuerdo previo/CLA), `THIRD_PARTY_NOTICES.md`, cabeceras de copyright en `.kt` y actualización del sitio (`docs/index.html`) con aviso de licencia/derechos. |

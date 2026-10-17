@@ -1,15 +1,25 @@
 # Contribuir a Auralis
 
-¡Gracias por tu interés en contribuir! Este documento te guía para enviar contribuciones de calidad.
+¡Gracias por tu interés en Auralis!
 
-## 🚀 Primeros Pasos
+> ⚠️ **Aviso de licencia — contribuciones solo con acuerdo previo.**
+> Auralis es **software propietario** distribuido bajo la **PolyForm Noncommercial
+> License 1.0.0** (ver [`LICENSE`](LICENSE)). El proyecto **es de código abierto
+> solo para lectura (source-available)** y **no acepta contribuciones externas
+> espontáneas**. Para enviar una contribución necesitás **contactar antes** a
+> soporte@estalingradocorp.com y firmar un **acuerdo de cesión de derechos (CLA)**
+> que transfiera la titularidad de tu aporte a EstalingradoCorp. Los Pull Requests
+> sin ese acuerdo **no serán fusionados**.
 
-1. **Fork** el repositorio
-2. **Clona** tu fork: `git clone https://github.com/TU-USUARIO/auralis.git`
-3. **Crea una rama**: `git checkout -b feature/mi-nueva-funcionalidad`
-4. **Desarrolla** y testea tus cambios
-5. **Commit** con mensajes convencionales
-6. **Push** y abre un **Pull Request**
+## 🚀 Flujo para contribuciones autorizadas
+
+1. **Contactá primero** a soporte@estalingradocorp.com y firmá el **CLA**.
+2. **Fork** el repositorio (solo tras la autorización).
+3. **Clona** tu fork: `git clone https://github.com/TU-USUARIO/AURALIS.git`
+4. **Crea una rama**: `git checkout -b feature/mi-nueva-funcionalidad`
+5. **Desarrolla** y testea tus cambios
+6. **Commit** con mensajes convencionales
+7. **Push** y abre un **Pull Request**
 
 ## 📋 Estándares de Código
 
@@ -131,11 +141,17 @@ Usa la plantilla **Feature Request** (`.github/ISSUE_TEMPLATE/feature_request.ym
 - Alternativas consideradas
 - Mockups si es UI
 
+## 📄 Licencia
+
+Este proyecto está bajo la **PolyForm Noncommercial License 1.0.0**. Al enviar
+cualquier contribución autorizada, aceptás que tus aportes queden sujetos a
+dicha licencia y cedés la titularidad a EstalingradoCorp según el CLA.
+
 ## 📞 Contacto
 
-- Issues: [GitHub Issues](https://github.com/estalingradocorp/auralis/issues)
+- Issues: [GitHub Issues](https://github.com/nicolabarranco27-a11y/AURALIS/issues)
 - Email: soporte@estalingradocorp.com
 
 ---
 
-**¡Gracias por mejorar Auralis!** 🎵
+**¡Gracias por tu interés en Auralis!** 🎵
